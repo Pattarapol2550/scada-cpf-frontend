@@ -182,12 +182,21 @@ export default function DashboardPage() {
     setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
-  // KPI warns
+  // guard: backend returns "--" (string) when value can't be computed
+  const n = v => (typeof v === 'number' ? v : null)
+
+  // KPI warns — only trigger when value is an actual number
   const warns = {
-    cop:    latest?.actual_cop < 1.5 ? 'Low Efficiency' : '',
-    sh:     latest?.superheat_suc < 0 ? 'Floodback Risk' : latest?.superheat_suc > 15 ? 'High Superheat' : '',
-    sc:     latest?.subcooling < 2 ? 'Low Subcooling' : latest?.subcooling > 15 ? 'High Subcooling' : '',
-    pr:     latest?.pressure_ratio > 10 ? 'High Ratio' : '',
+    cop: n(latest?.actual_cop) !== null && n(latest?.actual_cop) < 1.5 ? 'Low Efficiency' : '',
+    sh:  n(latest?.superheat_suc) !== null
+           ? n(latest?.superheat_suc) < 0  ? 'Floodback Risk'
+           : n(latest?.superheat_suc) > 15 ? 'High Superheat' : ''
+           : '',
+    sc:  n(latest?.subcooling) !== null
+           ? n(latest?.subcooling) < 2  ? 'Low Subcooling'
+           : n(latest?.subcooling) > 15 ? 'High Subcooling' : ''
+           : '',
+    pr:  n(latest?.pressure_ratio) !== null && n(latest?.pressure_ratio) > 10 ? 'High Ratio' : '',
   }
 
   // ── P-H chart data ───────────────────────────────────
