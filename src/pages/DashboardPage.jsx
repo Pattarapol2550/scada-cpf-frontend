@@ -11,36 +11,36 @@ import {
   PointElement, LineElement, Tooltip, Legend, Filler,
 } from 'chart.js'
 import { Line, Scatter } from 'react-chartjs-2'
-
+ 
 ChartJS.register(
   CategoryScale, LinearScale, LogarithmicScale,
   PointElement, LineElement, Tooltip, Legend, Filler
 )
-
+ 
 // ── Helpers ─────────────────────────────────────────────
 const COMPRESSORS = ['COMP-01','COMP-02','COMP-03','COMP-04','COMP-05','COMP-06','COMP-07']
-
+ 
 function toLocalDT(date) {
   const p = n => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`
 }
-
+ 
 function formatThaiTime(str) {
   if (!str) return '--'
   return new Date(str).toLocaleString('th-TH', {
     timeZone: 'Asia/Bangkok', hour12: false,
     day: '2-digit', month: 'short',
-    hour: '2-digit', minute: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
   })
 }
-
+ 
 function num(v) { return isNaN(Number(v)) ? null : Number(v) }
-
+ 
 const CHART_DEFAULTS = {
   responsive: true,
   maintainAspectRatio: false,
   animation: false,
-  elements: { point: { radius: 0, hoverRadius: 6 } },
+  elements: { point: { radius: 3, hoverRadius: 7 } },
   plugins: {
     legend: { display: false },
     tooltip: {
@@ -51,36 +51,53 @@ const CHART_DEFAULTS = {
     },
   },
   scales: {
-    x: { ticks: { maxTicksLimit: 8, maxRotation: 0, color: '#4d5562' }, grid: { color: 'rgba(48,54,61,0.5)' } },
-    y: { ticks: { color: '#4d5562' }, grid: { color: 'rgba(48,54,61,0.5)' } },
+    x: { ticks: { maxTicksLimit: 8, maxRotation: 0, color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' } },
+    y: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' } },
   },
 }
-
-function mkDs(label, data, color, fill = false) {
+ 
+function mkDs(label, data, color) {
   return {
     label, data,
     borderColor: color,
-    backgroundColor: fill ? color.replace(')', ',0.08)').replace('rgb', 'rgba') : 'transparent',
-    borderWidth: 1.5, tension: 0.35, spanGaps: true, fill,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5, tension: 0.35, spanGaps: true, fill: false,
+    pointRadius: 3,
+    pointBackgroundColor: color,
+    pointBorderColor: color,
+    pointBorderWidth: 1,
     pointHoverRadius: 7,
     pointHoverBackgroundColor: color,
     pointHoverBorderColor: '#161b22',
     pointHoverBorderWidth: 2,
   }
 }
-
+ 
 // ── FilterBar ────────────────────────────────────────────
-function FilterBar({ comp, setComp, start, setStart, end, setEnd, onSearch, onClear }) {
+function FilterBar({ start, setStart, end, setEnd, onSearch }) {
   const [activeShortcut, setActiveShortcut] = useState(null)
-
-  const setRange = (days) => {
-    const now = new Date(), past = new Date(now - days * 86400000)
-    setStart(toLocalDT(past))
-    setEnd(toLocalDT(now))
-    setActiveShortcut(days)
-    onSearch()
+ 
+  const setRangeH = (hours) => {
+    const now = new Date(), past = new Date(now - hours * 3600000)
+    const s = toLocalDT(past)
+    const e = toLocalDT(now)
+    setStart(s)
+    setEnd(e)
+    setActiveShortcut(hours)
+    onSearch(s, e)
   }
-
+ 
+  const handleReset = () => {
+    const now  = new Date()
+    const past = new Date(now - 2 * 3600 * 1000)
+    const s = toLocalDT(past)
+    const e = toLocalDT(now)
+    setStart(s)
+    setEnd(e)
+    setActiveShortcut(null)
+    onSearch(s, e)
+  }
+ 
   return (
     <div style={{
       background: 'var(--bg1)', border: '1px solid var(--border)',
@@ -88,17 +105,6 @@ function FilterBar({ comp, setComp, start, setStart, end, setEnd, onSearch, onCl
       display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10,
       transition: 'background 0.2s',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)' }}>Compressor</span>
-        <select
-          value={comp}
-          onChange={e => { setComp(e.target.value); onSearch() }}
-          style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 10px', fontSize: 12, outline: 'none' }}
-        >
-          {COMPRESSORS.map(c => <option key={c}>{c}</option>)}
-        </select>
-      </div>
-
       {[['เริ่ม', start, setStart], ['สิ้นสุด', end, setEnd]].map(([label, val, set]) => (
         <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)' }}>{label}</span>
@@ -109,33 +115,41 @@ function FilterBar({ comp, setComp, start, setStart, end, setEnd, onSearch, onCl
           />
         </div>
       ))}
-
+ 
       <div style={{ display: 'flex', gap: 4 }}>
-        {[1, 3, 7].map(d => (
-          <button key={d}
-            onClick={() => setRange(d)}
+        {[{h:1,label:'1H'},{h:4,label:'4H'},{h:8,label:'8H'},{h:24,label:'24H'}].map(({h,label}) => (
+          <button key={h}
+            onClick={() => setRangeH(h)}
             style={{
               padding: '6px 10px', fontSize: 11, fontWeight: 500,
-              background: activeShortcut === d ? 'var(--blue-dim)' : 'var(--bg2)',
-              border: `1px solid ${activeShortcut === d ? 'var(--blue)' : 'var(--border)'}`,
+              background: activeShortcut === h ? 'var(--blue-dim)' : 'var(--bg2)',
+              border: `1px solid ${activeShortcut === h ? 'var(--blue)' : 'var(--border)'}`,
               borderRadius: 8,
-              color: activeShortcut === d ? 'var(--blue)' : 'var(--text-2)',
+              color: activeShortcut === h ? 'var(--blue)' : 'var(--text-2)',
               cursor: 'pointer', transition: 'all 0.15s',
             }}
-          >{d}D</button>
+          >{label}</button>
         ))}
       </div>
-
+ 
       <div style={{ flex: 1 }} />
-
+ 
       <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn-ghost" onClick={() => { setStart(''); setEnd(''); setActiveShortcut(null); onClear() }}>Reset</button>
-        <button className="btn-primary" onClick={onSearch}>🔍 Search</button>
+        <button className="btn-ghost" onClick={handleReset}>Reset</button>
+        <button className="btn-primary" onClick={() => onSearch(start, end)}>🔍 Search</button>
       </div>
+      {start && end && (() => {
+        const diffH = (new Date(end) - new Date(start)) / 3600000
+        return diffH > 24 ? (
+          <div style={{ width: '100%', fontSize: 10, color: 'var(--amber)', background: 'var(--amber-dim)', border: '1px solid rgba(210,153,34,0.25)', borderRadius: 6, padding: '4px 10px' }}>
+            ⚠ ช่วงที่เลือกยาวกว่า 24 ชม. จะแสดงผลแค่ 720 records ล่าสุด
+          </div>
+        ) : null
+      })()}
     </div>
   )
 }
-
+ 
 // ── Main ─────────────────────────────────────────────────
 export default function DashboardPage() {
   const [comp, setComp]     = useState('COMP-01')
@@ -145,46 +159,94 @@ export default function DashboardPage() {
   const [selectedDiag, setSelectedDiag] = useState(null)
   const [selectedTs,   setSelectedTs]   = useState(null)
   const [phData, setPhData] = useState(null)
-  const reportRef = useRef(null)
-
+  const reportRef  = useRef(null)
+  const copScrollRef   = useRef(null)
+  const pressScrollRef = useRef(null)
+  const tempScrollRef  = useRef(null)
+  const shScrollRef    = useRef(null)
+  const pwScrollRef    = useRef(null)
+  const copPanelRef    = useRef(null)
+  const [copPanelW, setCopPanelW] = useState(0)
+  const [secPanelW, setSecPanelW] = useState(0)
+  const secPanelRef    = useRef(null)
+ 
   const { records, loading, error, fetch } = useMetrics()
-
-  const doFetch = useCallback(() => {
-    fetch(comp, start, end)
+ 
+  const doFetch = useCallback((s, e) => {
+    fetch(comp, s !== undefined ? s : start, e !== undefined ? e : end)
   }, [comp, start, end, fetch])
-
-  useEffect(() => { doFetch() }, [])
-
+ 
+  // initial load: 2 ชม.ล่าสุด
+  useEffect(() => {
+    const now  = new Date()
+    const past = new Date(now - 2 * 3600 * 1000)
+    const s = toLocalDT(past)
+    const e = toLocalDT(now)
+    setStart(s)
+    setEnd(e)
+    fetch(comp, s, e)
+  }, [])
+ 
   useEffect(() => {
     if (loading)      setConnStatus('connecting')
     else if (error)   setConnStatus('error')
     else              setConnStatus('live')
   }, [loading, error])
-
+ 
   // Fetch P-H diagram for latest record
   useEffect(() => {
     if (!records.length) return
     getPHDiagram(comp).then(r => setPhData(r.data)).catch(() => {})
   }, [records, comp])
-
+ 
+  // observe panel width เพื่อคำนวณ canvas width
+  useEffect(() => {
+    const obs = new ResizeObserver(entries => {
+      for (const e of entries) {
+        if (e.target === copPanelRef.current)  setCopPanelW(e.contentRect.width)
+        if (e.target === secPanelRef.current)  setSecPanelW(e.contentRect.width)
+      }
+    })
+    if (copPanelRef.current) obs.observe(copPanelRef.current)
+    if (secPanelRef.current) obs.observe(secPanelRef.current)
+    return () => obs.disconnect()
+  }, [])
+ 
+  // auto-scroll ทุก chart ไปขวาสุด (ล่าสุด) เมื่อ data โหลดเสร็จ
+  useEffect(() => {
+    if (!records.length) return
+    const refs = [copScrollRef, pressScrollRef, tempScrollRef, shScrollRef, pwScrollRef]
+    // รอ 1 frame ให้ DOM render canvas ก่อน
+    requestAnimationFrame(() => {
+      refs.forEach(r => {
+        if (r.current) r.current.scrollLeft = r.current.scrollWidth
+      })
+    })
+  }, [records])
+ 
   const latest = records[0]?.diagnosis ?? null
   const rows   = [...records].reverse()
   const labels = rows.map(r => formatThaiTime(r.timestamp))
   const diags  = rows.map(r => r.diagnosis || {})
   const inputs = rows.map(r => r.inputs_snapshot || {})
-
+ 
   const showRecord = (idx) => {
     const rec = rows[idx]
     if (!rec) return
     setSelectedDiag(rec.diagnosis)
     setSelectedTs(rec.timestamp)
     getPHDiagram(comp, rec._id).then(r => setPhData(r.data)).catch(() => {})
-    setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+    // wait for React re-render before scrolling
+    setTimeout(() => {
+      if (reportRef.current) {
+        reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 150)
   }
-
+ 
   // guard: backend returns "--" (string) when value can't be computed
   const n = v => (typeof v === 'number' ? v : null)
-
+ 
   // KPI warns — only trigger when value is an actual number
   const warns = {
     cop: n(latest?.actual_cop) !== null && n(latest?.actual_cop) < 1.5 ? 'Low Efficiency' : '',
@@ -198,7 +260,7 @@ export default function DashboardPage() {
            : '',
     pr:  n(latest?.pressure_ratio) !== null && n(latest?.pressure_ratio) > 10 ? 'High Ratio' : '',
   }
-
+ 
   // ── P-H chart data ───────────────────────────────────
   const phChartData = phData ? {
     datasets: [
@@ -229,21 +291,62 @@ export default function DashboardPage() {
       },
     ],
   } : null
-
+ 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg0)' }}>
       <Navbar connStatus={connStatus} />
-
-      <div style={{ maxWidth: 1600, margin: '0 auto', padding: '16px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-
+ 
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)' }}>
+ 
+        {/* ── Sidebar ── */}
+        <div style={{
+          width: 160, flexShrink: 0,
+          background: 'var(--bg1)',
+          borderRight: '1px solid var(--border)',
+          padding: '16px 0',
+          display: 'flex', flexDirection: 'column', gap: 2,
+        }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', padding: '0 16px 10px' }}>
+            Compressor
+          </div>
+          {COMPRESSORS.map(c => (
+            <button
+              key={c}
+              onClick={() => {
+                setComp(c)
+                const now = new Date(), past = new Date(now - 2 * 3600 * 1000)
+                const s = toLocalDT(past), e = toLocalDT(now)
+                setStart(s); setEnd(e)
+                fetch(c, s, e)
+              }}
+              style={{
+                width: '100%', textAlign: 'left',
+                padding: '10px 16px',
+                fontSize: 13, fontWeight: comp === c ? 600 : 400,
+                border: 'none', borderRadius: 0,
+                background: comp === c ? 'var(--blue-dim)' : 'transparent',
+                color: comp === c ? 'var(--blue)' : 'var(--text-2)',
+                borderLeft: `3px solid ${comp === c ? 'var(--blue)' : 'transparent'}`,
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { if (comp !== c) e.currentTarget.style.background = 'var(--bg2)' }}
+              onMouseLeave={e => { if (comp !== c) e.currentTarget.style.background = 'transparent' }}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+ 
+        {/* ── Main content ── */}
+        <div style={{ flex: 1, minWidth: 0, padding: '16px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14, overflowX: 'hidden' }}>
+ 
         {/* 1. Filter bar */}
         <FilterBar
-          comp={comp} setComp={setComp}
           start={start} setStart={setStart}
           end={end} setEnd={setEnd}
-          onSearch={doFetch} onClear={doFetch}
+          onSearch={doFetch}
         />
-
+ 
         {/* 2. KPI cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
           <KPICard label="Actual COP"   value={latest?.actual_cop}        unit="coefficient" accent="var(--green)"  warn={warns.cop} />
@@ -253,10 +356,10 @@ export default function DashboardPage() {
           <KPICard label="Subcooling"   value={latest?.subcooling}        unit="°C"          accent="var(--purple)" warn={warns.sc} />
           <KPICard label="Press. Ratio" value={latest?.pressure_ratio}    unit="ratio"       accent="var(--orange)" warn={warns.pr} />
         </div>
-
+ 
         {/* 3. COP Trend + P-H Diagram */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 14 }}>
-          <div className="panel">
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 14 }}>
+          <div className="panel" style={{ minWidth: 0 }} ref={copPanelRef}>
             <div className="panel-header">
               <span className="panel-title">COP Trend</span>
               <div style={{ display: 'flex', gap: 12 }}>
@@ -268,28 +371,56 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div style={{ overflowX: 'auto' }}>
-              <div style={{ position: 'relative', height: 220, width: Math.max(rows.length * 42, 700) }}>
-                <Line
-                  data={{
-                    labels,
-                    datasets: [
-                      mkDs('Actual COP', diags.map(d => num(d.actual_cop)), '#3fb950', true),
-                      mkDs('System COP', diags.map(d => num(d.system_cop)), '#d29922'),
-                      mkDs('Cycle COP',  diags.map(d => num(d.cycle_cop)),  '#ec6cb9'),
-                    ],
-                  }}
-                  options={{
-                    ...CHART_DEFAULTS,
-                    onClick: (_, els) => els.length && showRecord(els[0].index),
-                    onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default' },
-                    plugins: { ...CHART_DEFAULTS.plugins, tooltip: { ...CHART_DEFAULTS.plugins.tooltip, callbacks: { footer: () => 'คลิกเพื่อดู Report ณ เวลานี้' } } },
-                  }}
-                />
+            {rows.length === 0 ? (
+              <div style={{
+                height: 220, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 8,
+                background: 'var(--bg2)', borderRadius: 8,
+              }}>
+                <span style={{ fontSize: 22, opacity: 0.4 }}>📭</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2)' }}>
+                  ไม่พบข้อมูลในช่วงเวลาที่คุณเลือก
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                  ลองเปลี่ยนช่วงวันที่หรือเลือก compressor อื่น
+                </span>
               </div>
-            </div>
+            ) : (
+              <div className="cop-scroll" style={{ maxWidth: "100%" }} ref={copScrollRef}>
+                <div style={{ position: 'relative', height: 220, width: Math.max(rows.length * 30, copPanelW || 1) }}>
+                  <Line
+                    key={`${rows.length}-${copPanelW}`}
+                    data={{
+                      labels,
+                      datasets: [
+                        mkDs('Actual COP', diags.map(d => num(d.actual_cop)), '#3fb950'),
+                        mkDs('System COP', diags.map(d => num(d.system_cop)), '#d29922'),
+                        mkDs('Cycle COP',  diags.map(d => num(d.cycle_cop)),  '#ec6cb9'),
+                      ],
+                    }}
+                    width={Math.max(rows.length * 30, copPanelW || 1)}
+                    height={220}
+                    options={{
+                      ...CHART_DEFAULTS,
+                      responsive: false,
+                      onClick: (_, els) => els.length && showRecord(els[0].index),
+                      onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default' },
+                      plugins: {
+                        ...CHART_DEFAULTS.plugins,
+                        tooltip: {
+                          ...CHART_DEFAULTS.plugins.tooltip,
+                          mode: 'nearest',
+                          intersect: false,
+                          callbacks: { footer: () => 'คลิกเพื่อดู Report ณ เวลานี้' },
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
-
+ 
           <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="panel-header">
               <span className="panel-title">P-H Diagram</span>
@@ -305,8 +436,8 @@ export default function DashboardPage() {
                     responsive: true, maintainAspectRatio: false, animation: false,
                     plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1c2333', borderColor: '#30363d', borderWidth: 1, bodyColor: '#e6edf3' } },
                     scales: {
-                      x: { type: 'linear', min: 150, max: 1800, title: { display: true, text: 'h (kJ/kg)', color: '#4d5562', font: { size: 9 } }, ticks: { color: '#4d5562', maxTicksLimit: 5 }, grid: { color: 'rgba(48,54,61,0.4)' } },
-                      y: { type: 'logarithmic', min: 0.08, max: 7, title: { display: true, text: 'P (MPa)', color: '#4d5562', font: { size: 9 } }, ticks: { color: '#4d5562', callback: v => v < 1 ? v.toFixed(2) : v.toFixed(1) }, grid: { color: 'rgba(48,54,61,0.4)' } },
+                      x: { type: 'linear', min: 150, max: 1800, title: { display: true, text: 'h (kJ/kg)', color: '#8b949e', font: { size: 9 } }, ticks: { color: '#8b949e', maxTicksLimit: 5 }, grid: { color: 'rgba(48,54,61,0.4)' } },
+                      y: { type: 'logarithmic', min: 0.08, max: 7, title: { display: true, text: 'P (MPa)', color: '#8b949e', font: { size: 9 } }, ticks: { color: '#8b949e', callback: v => v < 1 ? v.toFixed(2) : v.toFixed(1) }, grid: { color: 'rgba(48,54,61,0.4)' } },
                     },
                   }}
                 />
@@ -314,12 +445,12 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
+ 
         {/* 4. Secondary charts 2×2 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }} ref={secPanelRef}>
+ 
           {/* Pressure */}
-          <div className="panel">
+          <div className="panel" style={{ minWidth: 0 }}>
             <div className="panel-header">
               <span className="panel-title">Pressure</span>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -331,14 +462,17 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div style={{ position: 'relative', height: 160 }}>
-              <Line data={{ labels, datasets: [mkDs('SP', inputs.map(i => num(i.sp_kg)), '#39c5cf'), mkDs('DP', inputs.map(i => num(i.dp_kg)), '#f85149')] }}
-                options={{ ...CHART_DEFAULTS, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: 'kg/cm²', color: '#4d5562', font: { size: 9 } } } } }} />
+            <div className="cop-scroll" ref={pressScrollRef}>
+              <div style={{ position: 'relative', height: 160, width: Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1) }}>
+                <Line key={`${rows.length}-${secPanelW}`} width={Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)} height={160}
+                  data={{ labels, datasets: [mkDs('SP', inputs.map(i => num(i.sp_kg)), '#39c5cf'), mkDs('DP', inputs.map(i => num(i.dp_kg)), '#f85149')] }}
+                  options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: 'kg/cm²', color: '#8b949e', font: { size: 9 } } } } }} />
+              </div>
             </div>
           </div>
-
+ 
           {/* Temperature */}
-          <div className="panel">
+          <div className="panel" style={{ minWidth: 0 }}>
             <div className="panel-header">
               <span className="panel-title">Temperature</span>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -350,14 +484,17 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div style={{ position: 'relative', height: 160 }}>
-              <Line data={{ labels, datasets: [mkDs('ST', inputs.map(i => num(i.st_c)), '#39c5cf'), mkDs('DT', inputs.map(i => num(i.dt_c)), '#f85149'), mkDs('Liquid', inputs.map(i => num(i.liquid_temp_c)), '#a371f7')] }}
-                options={{ ...CHART_DEFAULTS, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: '°C', color: '#4d5562', font: { size: 9 } } } } }} />
+            <div className="cop-scroll" ref={tempScrollRef}>
+              <div style={{ position: 'relative', height: 160, width: Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1) }}>
+                <Line key={`${rows.length}-${secPanelW}`} width={Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)} height={160}
+                  data={{ labels, datasets: [mkDs('ST', inputs.map(i => num(i.st_c)), '#39c5cf'), mkDs('DT', inputs.map(i => num(i.dt_c)), '#f85149'), mkDs('Liquid', inputs.map(i => num(i.liquid_temp_c)), '#a371f7')] }}
+                  options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: '°C', color: '#8b949e', font: { size: 9 } } } } }} />
+              </div>
             </div>
           </div>
-
+ 
           {/* Superheat / Subcooling */}
-          <div className="panel">
+          <div className="panel" style={{ minWidth: 0 }}>
             <div className="panel-header">
               <span className="panel-title">Superheat / Subcooling</span>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -369,14 +506,17 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div style={{ position: 'relative', height: 160 }}>
-              <Line data={{ labels, datasets: [mkDs('Superheat', diags.map(d => num(d.superheat_suc)), '#f85149'), mkDs('Subcooling', diags.map(d => num(d.subcooling)), '#a371f7')] }}
-                options={{ ...CHART_DEFAULTS, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: '°C', color: '#4d5562', font: { size: 9 } } } } }} />
+            <div className="cop-scroll" ref={shScrollRef}>
+              <div style={{ position: 'relative', height: 160, width: Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1) }}>
+                <Line key={`${rows.length}-${secPanelW}`} width={Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)} height={160}
+                  data={{ labels, datasets: [mkDs('Superheat', diags.map(d => num(d.superheat_suc)), '#f85149'), mkDs('Subcooling', diags.map(d => num(d.subcooling)), '#a371f7')] }}
+                  options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: '°C', color: '#8b949e', font: { size: 9 } } } } }} />
+              </div>
             </div>
           </div>
-
+ 
           {/* Power & Capacity */}
-          <div className="panel">
+          <div className="panel" style={{ minWidth: 0 }}>
             <div className="panel-header">
               <span className="panel-title">Power &amp; Capacity</span>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -388,40 +528,68 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div style={{ position: 'relative', height: 160 }}>
-              <Line data={{ labels, datasets: [mkDs('Power kW', diags.map(d => num(d.power_kw)), '#f0883e'), mkDs('Q_L kW', diags.map(d => num(d.calculated_ql_kw)), '#39c5cf')] }}
-                options={{ ...CHART_DEFAULTS, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: 'kW', color: '#4d5562', font: { size: 9 } } } } }} />
+            <div className="cop-scroll" ref={pwScrollRef}>
+              <div style={{ position: 'relative', height: 160, width: Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1) }}>
+                <Line key={`${rows.length}-${secPanelW}`} width={Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)} height={160}
+                  data={{ labels, datasets: [mkDs('Power kW', diags.map(d => num(d.power_kw)), '#f0883e'), mkDs('Q_L kW', diags.map(d => num(d.calculated_ql_kw)), '#39c5cf')] }}
+                  options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: 'kW', color: '#8b949e', font: { size: 9 } } } } }} />
+              </div>
             </div>
           </div>
         </div>
-
+ 
         {/* 5. Analysis report + Alarm history */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} ref={reportRef}>
           <div className="panel">
             <div className="panel-header">
               <span className="panel-title">Analysis Report</span>
-              {selectedTs && (
-                <span style={{ fontSize: 10, color: 'var(--blue)', background: 'var(--blue-dim)', border: '1px solid rgba(88,166,255,0.2)', padding: '2px 8px', borderRadius: 20, fontFamily: 'monospace' }}>
-                  📍 {formatThaiTime(selectedTs)}
-                </span>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {selectedTs && (
+                  <span style={{ fontSize: 10, color: 'var(--blue)', background: 'var(--blue-dim)', border: '1px solid rgba(88,166,255,0.2)', padding: '2px 8px', borderRadius: 20, fontFamily: 'monospace' }}>
+                    📍 {formatThaiTime(selectedTs)}
+                  </span>
+                )}
+                {selectedDiag && (
+                  <button
+                    onClick={() => { setSelectedDiag(null); setSelectedTs(null) }}
+                    style={{ fontSize: 10, fontWeight: 600, padding: '2px 10px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text-2)', cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.target.style.borderColor = 'var(--border-hi)'; e.target.style.color = 'var(--text-1)' }}
+                    onMouseLeave={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.color = 'var(--text-2)' }}
+                  >
+                    ↺ ล่าสุด
+                  </button>
+                )}
+              </div>
             </div>
             <DiagnosisReport diag={selectedDiag ?? latest} />
           </div>
-
+ 
           <div className="panel">
             <div className="panel-header">
               <span className="panel-title">Alarm History</span>
-              {selectedTs && (
-                <span style={{ fontSize: 10, color: 'var(--blue)', background: 'var(--blue-dim)', border: '1px solid rgba(88,166,255,0.2)', padding: '2px 8px', borderRadius: 20, fontFamily: 'monospace' }}>
-                  📍 {formatThaiTime(selectedTs)}
-                </span>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {selectedTs && (
+                  <span style={{ fontSize: 10, color: 'var(--blue)', background: 'var(--blue-dim)', border: '1px solid rgba(88,166,255,0.2)', padding: '2px 8px', borderRadius: 20, fontFamily: 'monospace' }}>
+                    📍 {formatThaiTime(selectedTs)}
+                  </span>
+                )}
+                {selectedDiag && (
+                  <button
+                    onClick={() => { setSelectedDiag(null); setSelectedTs(null) }}
+                    style={{ fontSize: 10, fontWeight: 600, padding: '2px 10px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text-2)', cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.target.style.borderColor = 'var(--border-hi)'; e.target.style.color = 'var(--text-1)' }}
+                    onMouseLeave={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.color = 'var(--text-2)' }}
+                  >
+                    ↺ ล่าสุด
+                  </button>
+                )}
+              </div>
             </div>
             <AlarmLog records={selectedDiag ? [{ diagnosis: selectedDiag, timestamp: selectedTs }] : records} singleRecord={!!selectedDiag} />
           </div>
         </div>
-
+ 
+        </div>
       </div>
     </div>
   )

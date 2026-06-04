@@ -10,7 +10,7 @@ export function useMetrics() {
     setLoading(true)
     setError(null)
     try {
-      const params = { limit: 2000 }
+      const params = { limit: 720 }
       if (startDate) params.start = new Date(startDate).toISOString()
       if (endDate)   params.end   = new Date(endDate).toISOString()
 

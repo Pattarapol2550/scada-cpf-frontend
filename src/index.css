@@ -135,3 +135,23 @@ body {
   transition: border-color 0.15s, color 0.15s;
 }
 .btn-ghost:hover { border-color: var(--border-hi); color: var(--text-1); }
+
+/* ── COP chart horizontal scrollbar ── */
+.cop-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.cop-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.cop-scroll::-webkit-scrollbar-track {
+  background: var(--bg2);
+  border-radius: 2px;
+}
+.cop-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-hi);
+  border-radius: 2px;
+}
+.cop-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
+}

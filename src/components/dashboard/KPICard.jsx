@@ -10,7 +10,7 @@ export default function KPICard({ label, value, unit, accent, warn }) {
     }}>
       <div style={{
         fontSize: 10, fontWeight: 600, letterSpacing: '0.07em',
-        textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 6,
+        textTransform: 'uppercase', color: 'var(--text-2)', marginBottom: 6,
       }}>{label}</div>
 
       <div style={{
@@ -23,7 +23,7 @@ export default function KPICard({ label, value, unit, accent, warn }) {
 
       {unit && (
         <div style={{
-          fontSize: 10, color: 'var(--text-3)',
+          fontSize: 10, color: 'var(--text-2)',
           fontFamily: 'JetBrains Mono, monospace', marginTop: 3,
         }}>{unit}</div>
       )}
