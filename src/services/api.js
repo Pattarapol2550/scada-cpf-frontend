@@ -1,0 +1,32 @@
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'https://cpfbackend2-0.onrender.com',
+  timeout: 15000,
+})
+
+// Attach token to every request automatically
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('scada-token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// ── Metrics ──────────────────────────────────────────────
+
+export const getMetrics = (compressorId, params = {}) =>
+  api.get(`/api/metrics/${compressorId}`, { params })
+
+export const postMetrics = (payload) =>
+  api.post('/api/metrics', payload)
+
+// ── P-H Diagram ──────────────────────────────────────────
+
+export const getPHDiagram = (compressorId, recordId = null) =>
+  api.get(`/api/ph-diagram/${compressorId}`, {
+    params: recordId ? { record_id: recordId } : {},
+  })
+
+export default api
