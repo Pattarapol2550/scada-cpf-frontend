@@ -4,7 +4,7 @@ import axios from 'axios'
 // prod → ใช้ VITE_API_URL จาก .env
 const baseURL = import.meta.env.DEV
   ? ''
-  : (import.meta.env.VITE_API_URL || 'https://cpfbackend2-0-39cc.onrender.com')
+  : (import.meta.env.VITE_API_URL || 'https://cpfbackend2-0.onrender.com')
 
 const api = axios.create({
   baseURL,
