@@ -44,7 +44,7 @@ const CHART_DEFAULTS = {
   plugins: {
     legend: { display: false },
     tooltip: {
-      mode: 'index', intersect: false,
+      mode: 'point', intersect: true,
       backgroundColor: '#1c2333',
       borderColor: '#30363d', borderWidth: 1,
       titleColor: '#8b949e', bodyColor: '#e6edf3', padding: 10,
@@ -262,6 +262,16 @@ export default function DashboardPage() {
   }
  
   // ── P-H chart data ───────────────────────────────────
+  // Auto x-axis range from cycle points
+  const phXRange = (() => {
+    if (!phData?.cycle) return { min: 150, max: 1800 }
+    const pts = [phData.cycle.point1, phData.cycle.point2, phData.cycle.point3, phData.cycle.point4].filter(Boolean)
+    if (!pts.length) return { min: 150, max: 1800 }
+    const hs = pts.map(p => p.h)
+    const pad = (Math.max(...hs) - Math.min(...hs)) * 0.15
+    return { min: Math.floor(Math.min(...hs) - pad), max: Math.ceil(Math.max(...hs) + pad) }
+  })()
+
   const phChartData = phData ? {
     datasets: [
       {
@@ -407,9 +417,11 @@ export default function DashboardPage() {
                         ...CHART_DEFAULTS.plugins,
                         tooltip: {
                           ...CHART_DEFAULTS.plugins.tooltip,
-                          mode: 'nearest',
-                          intersect: false,
-                          callbacks: { footer: () => 'คลิกเพื่อดู Report ณ เวลานี้' },
+                          mode: 'point',
+                          intersect: true,
+                          callbacks: {
+                            footer: () => 'คลิกเพื่อดู Report ณ เวลานี้'
+                          }
                         },
                       },
                     }}
@@ -434,7 +446,7 @@ export default function DashboardPage() {
                     responsive: true, maintainAspectRatio: false, animation: false,
                     plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1c2333', borderColor: '#30363d', borderWidth: 1, bodyColor: '#e6edf3' } },
                     scales: {
-                      x: { type: 'linear', min: 150, max: 1800, title: { display: true, text: 'h (kJ/kg)', color: '#8b949e', font: { size: 9 } }, ticks: { color: '#8b949e', maxTicksLimit: 5 }, grid: { color: 'rgba(48,54,61,0.4)' } },
+                      x: { type: 'linear', min: phXRange.min, max: phXRange.max, title: { display: true, text: 'h (kJ/kg)', color: '#8b949e', font: { size: 9 } }, ticks: { color: '#8b949e', maxTicksLimit: 5 }, grid: { color: 'rgba(48,54,61,0.4)' } },
                       y: { type: 'logarithmic', min: 0.08, max: 7, title: { display: true, text: 'P (MPa)', color: '#8b949e', font: { size: 9 } }, ticks: { color: '#8b949e', callback: v => v < 1 ? v.toFixed(2) : v.toFixed(1) }, grid: { color: 'rgba(48,54,61,0.4)' } },
                     },
                   }}

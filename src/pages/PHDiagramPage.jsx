@@ -8,6 +8,19 @@ ChartJS.register(LinearScale, LogarithmicScale, PointElement, LineElement, Toolt
 
 const COMPRESSORS = ['COMP-01','COMP-02','COMP-03','COMP-04','COMP-05','COMP-06','COMP-07']
 
+// คำนวณ x-axis range จาก cycle points จริง
+function getXRange(cycle) {
+  if (!cycle) return { min: 150, max: 1800 }
+  const pts = [cycle.point1, cycle.point2, cycle.point3, cycle.point4].filter(Boolean)
+  if (!pts.length) return { min: 150, max: 1800 }
+  const hs = pts.map(p => p.h)
+  const pad = (Math.max(...hs) - Math.min(...hs)) * 0.18
+  return {
+    min: Math.floor(Math.min(...hs) - pad),
+    max: Math.ceil(Math.max(...hs) + pad),
+  }
+}
+
 export default function PHDiagramPage() {
   const [comp, setComp] = useState('COMP-01')
   const [data, setData] = useState(null)
@@ -27,12 +40,32 @@ export default function PHDiagramPage() {
 
   const cycle = data?.cycle
   const dome  = data?.saturation_dome
+  const xRange = getXRange(cycle)
 
   const chartData = data ? {
     datasets: [
-      { label: 'Sat. liquid', data: dome.liquid.map(p => ({ x: p.h, y: p.p })), borderColor: '#39c5cf', backgroundColor: 'rgba(57,197,207,0.06)', borderWidth: 1.5, showLine: true, tension: 0.4, pointRadius: 0, fill: true },
-      { label: 'Sat. vapour', data: dome.vapour.map(p => ({ x: p.h, y: p.p })), borderColor: '#39c5cf', backgroundColor: 'transparent', borderWidth: 1.5, showLine: true, tension: 0.4, pointRadius: 0 },
-      { label: 'Cycle', data: [cycle?.point1, cycle?.point2, cycle?.point3, cycle?.point4, cycle?.point1].filter(Boolean).map(p => ({ x: p.h, y: p.p })), borderColor: '#f0883e', backgroundColor: '#f0883e', borderWidth: 2, showLine: true, tension: 0, pointRadius: [6,6,6,6,0], pointBackgroundColor: '#f0883e', pointBorderColor: '#161b22', pointBorderWidth: 2 },
+      {
+        label: 'Sat. liquid',
+        data: dome.liquid.map(p => ({ x: p.h, y: p.p })),
+        borderColor: '#39c5cf', backgroundColor: 'rgba(57,197,207,0.06)',
+        borderWidth: 1.5, showLine: true, tension: 0.4, pointRadius: 0, fill: true,
+      },
+      {
+        label: 'Sat. vapour',
+        data: dome.vapour.map(p => ({ x: p.h, y: p.p })),
+        borderColor: '#39c5cf', backgroundColor: 'transparent',
+        borderWidth: 1.5, showLine: true, tension: 0.4, pointRadius: 0,
+      },
+      {
+        label: 'Cycle',
+        data: [cycle?.point1, cycle?.point2, cycle?.point3, cycle?.point4, cycle?.point1]
+          .filter(Boolean).map(p => ({ x: p.h, y: p.p })),
+        borderColor: '#f0883e', backgroundColor: '#f0883e',
+        borderWidth: 2, showLine: true, tension: 0,
+        pointRadius: [6,6,6,6,0],
+        pointBackgroundColor: '#f0883e',
+        pointBorderColor: '#161b22', pointBorderWidth: 2,
+      },
     ],
   } : null
 
@@ -48,7 +81,9 @@ export default function PHDiagramPage() {
             style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 10px', fontSize: 12, outline: 'none' }}>
             {COMPRESSORS.map(c => <option key={c}>{c}</option>)}
           </select>
-          {data && <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>Latest record: {data.timestamp?.slice(0, 16).replace('T', ' ')}</span>}
+          {data && <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>
+            Latest: {data.timestamp?.slice(0, 16).replace('T', ' ')}
+          </span>}
         </div>
 
         {/* Chart */}
@@ -65,23 +100,42 @@ export default function PHDiagramPage() {
             </div>
           </div>
           <div style={{ position: 'relative', height: 480 }}>
-            {loading && <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-3)', fontSize:13 }}>Loading…</div>}
-            {error   && <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--red)', fontSize:13 }}>{error}</div>}
+            {loading && <div style={{ position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)',fontSize:13 }}>Loading…</div>}
+            {error   && <div style={{ position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--red)',fontSize:13 }}>{error}</div>}
             {chartData && (
               <Scatter data={chartData} options={{
                 responsive: true, maintainAspectRatio: false, animation: false,
-                plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1c2333', borderColor: '#30363d', borderWidth: 1, bodyColor: '#e6edf3',
-                  callbacks: { label: ctx => {
-                    if (ctx.datasetIndex === 2 && ctx.dataIndex < 4) {
-                      const pts = ['1: Evap outlet','2: Comp outlet','3: Cond outlet','4: Exp inlet']
-                      return `${pts[ctx.dataIndex]} — h: ${ctx.raw.x} kJ/kg  P: ${ctx.raw.y.toFixed(3)} MPa`
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    backgroundColor: '#1c2333', borderColor: '#30363d', borderWidth: 1, bodyColor: '#e6edf3',
+                    callbacks: {
+                      label: ctx => {
+                        if (ctx.datasetIndex === 2 && ctx.dataIndex < 4) {
+                          const pts = ['1: Evap outlet','2: Comp outlet','3: Cond outlet','4: Exp inlet']
+                          return `${pts[ctx.dataIndex]} — h: ${ctx.raw.x} kJ/kg  P: ${ctx.raw.y.toFixed(3)} MPa`
+                        }
+                        return `h: ${ctx.raw.x}  P: ${Number(ctx.raw.y).toFixed(3)} MPa`
+                      }
                     }
-                    return `h: ${ctx.raw.x}  P: ${Number(ctx.raw.y).toFixed(3)} MPa`
-                  }}
-                }},
+                  }
+                },
                 scales: {
-                  x: { type: 'linear', min: 150, max: 1800, title: { display: true, text: 'Enthalpy h (kJ/kg)', color: '#4d5562', font: { size: 11 } }, ticks: { color: '#4d5562' }, grid: { color: 'rgba(48,54,61,0.5)' } },
-                  y: { type: 'logarithmic', min: 0.08, max: 7, title: { display: true, text: 'Pressure P (MPa)', color: '#4d5562', font: { size: 11 } }, ticks: { color: '#4d5562', callback: v => v < 1 ? v.toFixed(2) : v.toFixed(1) }, grid: { color: 'rgba(48,54,61,0.5)' } },
+                  x: {
+                    type: 'linear',
+                    min: xRange.min,
+                    max: xRange.max,
+                    title: { display: true, text: 'Enthalpy h (kJ/kg)', color: '#4d5562', font: { size: 11 } },
+                    ticks: { color: '#4d5562' },
+                    grid: { color: 'rgba(48,54,61,0.5)' },
+                  },
+                  y: {
+                    type: 'logarithmic',
+                    min: 0.08, max: 7,
+                    title: { display: true, text: 'Pressure P (MPa)', color: '#4d5562', font: { size: 11 } },
+                    ticks: { color: '#4d5562', callback: v => v < 1 ? v.toFixed(2) : v.toFixed(1) },
+                    grid: { color: 'rgba(48,54,61,0.5)' },
+                  },
                 },
               }} />
             )}
@@ -109,6 +163,9 @@ export default function PHDiagramPage() {
             <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: 'var(--cyan)' }}>
               {(cycle.isentropic_efficiency * 100).toFixed(1)} %
             </span>
+            {!data?.inputs_snapshot?.dt_c && (
+              <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 8 }}>(assume η = 0.70)</span>
+            )}
           </div>
         )}
 
