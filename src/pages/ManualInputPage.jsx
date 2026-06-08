@@ -5,20 +5,33 @@ import { postMetrics } from '../services/api'
 
 const COMPRESSORS = ['COMP-01','COMP-02','COMP-03','COMP-04','COMP-05','COMP-06','COMP-07']
 
-function Field({ label, id, value, onChange, required }) {
+function Field({ label, id, value, onChange, required, optional, assumeText }) {
+  const hasVal = value !== ''
   return (
     <div>
-      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-2)', marginBottom: 5 }}>
-        {label}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 500, color: 'var(--text-2)', marginBottom: 5 }}>
+        <span style={{ flex: 1 }}>{label}</span>
+        {optional && (
+          <span style={{
+            fontSize: 10, padding: '1px 7px', borderRadius: 8,
+            background: hasVal ? 'rgba(63,185,80,0.12)' : 'rgba(107,114,128,0.12)',
+            color: hasVal ? 'var(--green)' : 'var(--text-2)',
+            fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap',
+          }}>
+            {hasVal ? 'measured' : assumeText}
+          </span>
+        )}
       </label>
       <input
         type="number" step="any" id={id}
         value={value} onChange={e => onChange(e.target.value)}
-        placeholder="0.00" required={required}
+        placeholder={optional ? `เว้นว่าง → ${assumeText}` : '0.00'}
+        required={required}
         style={{
           width: '100%', padding: '8px 10px', fontSize: 13,
           fontFamily: 'JetBrains Mono, monospace',
-          background: 'var(--bg2)', border: '1px solid var(--border)',
+          background: 'var(--bg2)',
+          border: `1px solid ${hasVal && optional ? 'var(--green)' : 'var(--border)'}`,
           borderRadius: 8, color: 'var(--text-1)', outline: 'none',
         }}
       />
@@ -42,7 +55,7 @@ export default function ManualInputPage() {
   const [compId, setCompId] = useState('COMP-01')
   const [form, setForm] = useState({
     sp: '', st: '', dp: '', dt: '',
-    liqTemp: '', massFlow: '', amp: '', fanPump: '', roomTemp: '', condTemp: '',
+    liqTemp: '', amp: '', roomTemp: '', condTemp: '',
   })
   const [status, setStatus] = useState(null)
 
@@ -55,14 +68,14 @@ export default function ManualInputPage() {
     try {
       await postMetrics({
         compressor_id: compId,
-        sp_kg: pf('sp'), st_c: pf('st'),
-        dp_kg: pf('dp'), dt_c: pf('dt'),
-        liquid_temp_c: pf('liqTemp'),
-        mass_flow_kg_s: pf('massFlow'),
-        current_amp: pf('amp'),
-        fan_pump_kw: pf('fanPump'),
+        sp_kg: pf('sp'),
+        dp_kg: pf('dp'),
+        st_c:  pf('st'),
+        dt_c:  pf('dt'),
+        liquid_temp_c:         pf('liqTemp'),
+        current_amp:           pf('amp'),
         evaporator_room_temp_c: pf('roomTemp'),
-        condenser_temp_c: pf('condTemp'),
+        condenser_temp_c:      pf('condTemp'),
       })
       setStatus('success')
       setTimeout(() => navigate('/dashboard'), 1200)
@@ -76,7 +89,10 @@ export default function ManualInputPage() {
       <Navbar />
       <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px 40px' }}>
         <div className="panel">
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-1)', marginBottom: 20 }}>Manual Input</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>Manual Input</div>
+          <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 20 }}>
+            V = 385V · PF = 0.86 (ค่าคงที่) · ช่องที่มี badge <span style={{ color: 'var(--green)' }}>optional</span> เว้นว่างได้
+          </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
@@ -90,24 +106,28 @@ export default function ManualInputPage() {
 
             <SectionLabel label="Suction" color="var(--cyan)" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="SP (kg/cm²)" id="sp" value={form.sp} onChange={set('sp')} required />
-              <Field label="ST (°C)"     id="st" value={form.st} onChange={set('st')} required />
+              <Field label="SP (kg/cm²g)" id="sp" value={form.sp} onChange={set('sp')} required />
+              <Field label="ST (°C)" id="st" value={form.st} onChange={set('st')}
+                optional assumeText="assume SH=5K" />
             </div>
 
             <SectionLabel label="Discharge" color="var(--red)" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="DP (kg/cm²)" id="dp" value={form.dp} onChange={set('dp')} required />
-              <Field label="DT (°C)"     id="dt" value={form.dt} onChange={set('dt')} required />
+              <Field label="DP (kg/cm²g)" id="dp" value={form.dp} onChange={set('dp')} required />
+              <Field label="DT (°C)" id="dt" value={form.dt} onChange={set('dt')}
+                optional assumeText="assume η=0.70" />
             </div>
 
             <SectionLabel label="Extra" color="var(--text-2)" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Liquid Temp (°C)"    id="liqTemp"  value={form.liqTemp}  onChange={set('liqTemp')} />
-              <Field label="Mass Flow (kg/s)"     id="massFlow" value={form.massFlow} onChange={set('massFlow')} />
-              <Field label="Current (A)"          id="amp"      value={form.amp}      onChange={set('amp')} />
-              <Field label="Fan / Pump (kW)"      id="fanPump"  value={form.fanPump}  onChange={set('fanPump')} />
-              <Field label="Room Temp (°C)"       id="roomTemp" value={form.roomTemp} onChange={set('roomTemp')} />
-              <Field label="Condenser Temp (°C)"  id="condTemp" value={form.condTemp} onChange={set('condTemp')} />
+              <Field label="Liquid Temp (°C)"   id="liqTemp"  value={form.liqTemp}  onChange={set('liqTemp')}
+                optional assumeText="assume SC=0" />
+              <Field label="Current (A)"         id="amp"      value={form.amp}      onChange={set('amp')}
+                optional assumeText="ไม่คำนวณ P_comp" />
+              <Field label="Room Temp (°C)"      id="roomTemp" value={form.roomTemp} onChange={set('roomTemp')}
+                optional assumeText="ไม่คำนวณ ΔT" />
+              <Field label="Condenser Temp (°C)" id="condTemp" value={form.condTemp} onChange={set('condTemp')}
+                optional assumeText="ไม่คำนวณ Approach" />
             </div>
 
             {status === 'error' && (

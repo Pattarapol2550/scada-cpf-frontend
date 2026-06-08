@@ -249,7 +249,7 @@ export default function DashboardPage() {
  
   // KPI warns — only trigger when value is an actual number
   const warns = {
-    cop: n(latest?.actual_cop) !== null && n(latest?.actual_cop) < 1.5 ? 'Low Efficiency' : '',
+    cop: n(latest?.cop) !== null && n(latest?.cop) < 1.5 ? 'Low Efficiency' : '',
     sh:  n(latest?.superheat_suc) !== null
            ? n(latest?.superheat_suc) < 0  ? 'Floodback Risk'
            : n(latest?.superheat_suc) > 15 ? 'High Superheat' : ''
@@ -349,11 +349,11 @@ export default function DashboardPage() {
  
         {/* 2. KPI cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
-          <KPICard label="Actual COP"   value={latest?.actual_cop}        unit="coefficient" accent="var(--green)"  warn={warns.cop} />
-          <KPICard label="System COP"   value={latest?.system_cop}        unit="coefficient" accent="var(--amber)"  />
-          <KPICard label="Cooling Cap." value={latest?.calculated_ql_kw}  unit="kW"          accent="var(--cyan)"   />
-          <KPICard label="Superheat"    value={latest?.superheat_suc}     unit="°C"          accent="var(--red)"    warn={warns.sh} />
-          <KPICard label="Subcooling"   value={latest?.subcooling}        unit="°C"          accent="var(--purple)" warn={warns.sc} />
+          <KPICard label="P_comp"       value={latest?.power_kw}          unit="kW"          accent="var(--cyan)"   />
+          <KPICard label="COP"          value={latest?.cop}               unit="—"           accent="var(--green)"  warn={warns.cop} />
+          <KPICard label="Q_e"          value={latest?.q_e_kw}            unit="kW"          accent="var(--amber)"  />
+          <KPICard label="Superheat"    value={latest?.superheat_suc}     unit="K"           accent="var(--red)"    warn={warns.sh} />
+          <KPICard label="Subcooling"   value={latest?.subcooling}        unit="K"           accent="var(--purple)" warn={warns.sc} />
           <KPICard label="Press. Ratio" value={latest?.pressure_ratio}    unit="ratio"       accent="var(--orange)" warn={warns.pr} />
         </div>
  
@@ -393,9 +393,7 @@ export default function DashboardPage() {
                     data={{
                       labels,
                       datasets: [
-                        mkDs('Actual COP', diags.map(d => num(d.actual_cop)), '#3fb950'),
-                        mkDs('System COP', diags.map(d => num(d.system_cop)), '#d29922'),
-                        mkDs('Cycle COP',  diags.map(d => num(d.cycle_cop)),  '#ec6cb9'),
+                        mkDs('COP', diags.map(d => num(d.cop)), '#3fb950'),
                       ],
                     }}
                     width={Math.max(rows.length * 30, copPanelW || 1)}
@@ -531,7 +529,7 @@ export default function DashboardPage() {
             <div className="cop-scroll" ref={pwScrollRef}>
               <div style={{ position: 'relative', height: 160, width: Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1) }}>
                 <Line key={`${rows.length}-${secPanelW}`} width={Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)} height={160}
-                  data={{ labels, datasets: [mkDs('Power kW', diags.map(d => num(d.power_kw)), '#f0883e'), mkDs('Q_L kW', diags.map(d => num(d.calculated_ql_kw)), '#39c5cf')] }}
+                  data={{ labels, datasets: [mkDs('P_comp kW', diags.map(d => num(d.power_kw)), '#f0883e'), mkDs('Q_e kW', diags.map(d => num(d.q_e_kw)), '#39c5cf')] }}
                   options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: 'kW', color: '#8b949e', font: { size: 9 } } } } }} />
               </div>
             </div>
