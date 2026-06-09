@@ -12,6 +12,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 
 const COMPRESSORS = ['COMP-01','COMP-02','COMP-03','COMP-04','COMP-05','COMP-06','COMP-07']
 const ROWS_PER_PAGE = 50
+const AUTO_REFRESH_SECONDS = 120 // auto-refresh ทุก 2 นาที
 
 function toLocalDT(date) {
   const p = n => String(n).padStart(2, '0')
@@ -121,16 +122,26 @@ function Pagination({ page, totalPages, onPage }) {
 // ── Main ─────────────────────────────────────────────────
 export default function HistoryPage() {
   const [comp, setComp]     = useState('COMP-01')
-  const [start, setStart]   = useState(() => toLocalDT(new Date(Date.now() - 24 * 3600000)))
+
+  // "live" mode = end ติด "ตอนนี้" เสมอ, start = now - 2h
+  const [liveMode, setLiveMode] = useState(true)
+  const [start, setStart]   = useState(() => toLocalDT(new Date(Date.now() - 2 * 3600000)))
   const [end, setEnd]       = useState(() => toLocalDT(new Date()))
+
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState(null)
   const [page, setPage]     = useState(1)
+  const [lastRefreshed, setLastRefreshed] = useState(null)
+  const [countdown, setCountdown] = useState(AUTO_REFRESH_SECONDS)
+
   const chartScrollRef = useRef(null)
   const chartPanelRef  = useRef(null)
   const [chartPanelW, setChartPanelW] = useState(0)
+  const timerRef = useRef(null)
+  const countdownRef = useRef(null)
 
+  // ── Fetch ────────────────────────────────────────────────
   const doFetch = useCallback(async (s, e) => {
     setLoading(true); setError(null); setPage(1)
     try {
@@ -139,7 +150,7 @@ export default function HistoryPage() {
       if (e) params.end   = new Date(e).toISOString()
       const res = await getMetrics(comp, params)
       setRecords(res.data)
-      // auto-scroll chart ไปขวาสุด
+      setLastRefreshed(new Date())
       requestAnimationFrame(() => {
         if (chartScrollRef.current)
           chartScrollRef.current.scrollLeft = chartScrollRef.current.scrollWidth
@@ -151,7 +162,52 @@ export default function HistoryPage() {
     }
   }, [comp])
 
-  useEffect(() => { doFetch(start, end) }, [])
+  // Live refresh: อัพเดท end = now แล้ว fetch
+  const doLiveRefresh = useCallback(() => {
+    const newEnd = new Date()
+    const newStart = new Date(newEnd.getTime() - 2 * 3600000)
+    setEnd(toLocalDT(newEnd))
+    setStart(toLocalDT(newStart))
+    doFetch(toLocalDT(newStart), toLocalDT(newEnd))
+    setCountdown(AUTO_REFRESH_SECONDS)
+  }, [doFetch])
+
+  // ── Auto-refresh interval ────────────────────────────────
+  useEffect(() => {
+    if (!liveMode) {
+      clearInterval(timerRef.current)
+      clearInterval(countdownRef.current)
+      return
+    }
+
+    // เริ่ม countdown tick ทุก 1 วิ
+    countdownRef.current = setInterval(() => {
+      setCountdown(c => {
+        if (c <= 1) return AUTO_REFRESH_SECONDS
+        return c - 1
+      })
+    }, 1000)
+
+    // auto-refresh ทุก AUTO_REFRESH_SECONDS
+    timerRef.current = setInterval(() => {
+      doLiveRefresh()
+    }, AUTO_REFRESH_SECONDS * 1000)
+
+    return () => {
+      clearInterval(timerRef.current)
+      clearInterval(countdownRef.current)
+    }
+  }, [liveMode, doLiveRefresh])
+
+  // โหลดครั้งแรกทันที
+  useEffect(() => {
+    doLiveRefresh()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // เมื่อเปลี่ยน comp ใน live mode ให้ refresh ทันที
+  useEffect(() => {
+    if (liveMode) doLiveRefresh()
+  }, [comp]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const obs = new ResizeObserver(entries => {
@@ -229,19 +285,85 @@ export default function HistoryPage() {
             </select>
           </div>
 
+          {/* Live mode toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => {
+                const next = !liveMode
+                setLiveMode(next)
+                if (next) doLiveRefresh()
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                border: '1px solid', cursor: 'pointer', transition: 'all 0.2s',
+                background: liveMode ? 'var(--green-dim)' : 'var(--bg2)',
+                borderColor: liveMode ? 'var(--green)' : 'var(--border)',
+                color: liveMode ? 'var(--green)' : 'var(--text-2)',
+              }}
+            >
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: liveMode ? 'var(--green)' : 'var(--text-3)',
+                display: 'inline-block',
+                boxShadow: liveMode ? '0 0 6px var(--green)' : 'none',
+                animation: liveMode ? 'pulse 1.5s ease-in-out infinite' : 'none',
+              }} />
+              Live
+            </button>
+          </div>
+
+          {/* Date inputs — disabled ใน live mode */}
           {[['เริ่ม', start, setStart], ['สิ้นสุด', end, setEnd]].map(([label, val, set]) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)' }}>{label}</span>
-              <input type="datetime-local" value={val} onChange={e => set(e.target.value)}
-                style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 10px', fontSize: 12, outline: 'none' }} />
+              <input
+                type="datetime-local" value={val}
+                onChange={e => { set(e.target.value); setLiveMode(false) }}
+                disabled={liveMode}
+                style={{
+                  background: liveMode ? 'rgba(255,255,255,0.03)' : 'var(--bg2)',
+                  border: '1px solid var(--border)', borderRadius: 8,
+                  color: liveMode ? 'var(--text-3)' : 'var(--text-1)',
+                  padding: '6px 10px', fontSize: 12, outline: 'none',
+                  cursor: liveMode ? 'not-allowed' : 'text',
+                  opacity: liveMode ? 0.5 : 1,
+                }}
+              />
             </div>
           ))}
 
           <div style={{ flex: 1 }} />
 
+          {/* Countdown + refresh status */}
+          {liveMode && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {lastRefreshed && (
+                <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'monospace' }}>
+                  อัพเดท {lastRefreshed.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              )}
+              <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'monospace' }}>
+                refresh ใน {countdown}s
+              </span>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn-ghost" onClick={() => { setStart(toLocalDT(new Date(Date.now() - 24*3600000))); setEnd(toLocalDT(new Date())); doFetch('', '') }}>Reset</button>
-            <button className="btn-primary" onClick={() => doFetch(start, end)}>🔍 Search</button>
+            {liveMode ? (
+              <button className="btn-ghost" onClick={doLiveRefresh} disabled={loading}
+                style={{ fontSize: 11, padding: '5px 12px' }}>
+                ↻ Refresh Now
+              </button>
+            ) : (
+              <>
+                <button className="btn-ghost" onClick={() => {
+                  setLiveMode(true)
+                  doLiveRefresh()
+                }}>Reset</button>
+                <button className="btn-primary" onClick={() => doFetch(start, end)}>🔍 Search</button>
+              </>
+            )}
           </div>
         </div>
 
@@ -333,7 +455,6 @@ export default function HistoryPage() {
                       const d = rec.diagnosis || {}
                       const alarms = d.alarms || []
                       const hasCrit = alarms.some(a => a.severity === 'Critical')
-                      const hasWarn = alarms.some(a => a.severity === 'Warning')
                       return (
                         <tr key={rec._id || i} style={{ borderBottom:'1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                           <td style={{ padding:'6px 10px', fontFamily:'monospace', fontSize:10, color:'var(--text-2)', whiteSpace:'nowrap' }}>{formatThaiTime(rec.timestamp)}</td>
@@ -372,6 +493,14 @@ export default function HistoryPage() {
         </div>
 
       </div>
+
+      {/* Pulse animation for live dot */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.3); }
+        }
+      `}</style>
     </div>
   )
 }
