@@ -151,11 +151,22 @@ function FilterBar({ start, setStart, end, setEnd, onSearch }) {
 }
  
 // ── Main ─────────────────────────────────────────────────
+// Poll interval options (ms). null = off.
+const POLL_OPTIONS = [
+  { label: 'Off',   value: null },
+  { label: '5s',    value: 5_000 },
+  { label: '10s',   value: 10_000 },
+  { label: '30s',   value: 30_000 },
+  { label: '1 min', value: 60_000 },
+]
+
 export default function DashboardPage() {
   const [comp, setComp]     = useState('COMP-01')
   const [start, setStart]   = useState('')
   const [end, setEnd]       = useState('')
   const [connStatus, setConnStatus] = useState('connecting')
+  const [liveMode, setLiveMode]     = useState(false)
+  const [pollInterval, setPollInterval] = useState(null)  // ms | null
   const [selectedDiag, setSelectedDiag] = useState(null)
   const [selectedTs,   setSelectedTs]   = useState(null)
   const [phData, setPhData] = useState(null)
@@ -170,7 +181,7 @@ export default function DashboardPage() {
   const [secPanelW, setSecPanelW] = useState(0)
   const secPanelRef    = useRef(null)
  
-  const { records, loading, error, fetch } = useMetrics()
+  const { records, loading, error, fetch, isPolling } = useMetrics({ pollInterval })
  
   const doFetch = useCallback((s, e) => {
     fetch(comp, s !== undefined ? s : start, e !== undefined ? e : end)
@@ -188,10 +199,11 @@ export default function DashboardPage() {
   }, [])
  
   useEffect(() => {
-    if (loading)      setConnStatus('connecting')
-    else if (error)   setConnStatus('error')
-    else              setConnStatus('live')
-  }, [loading, error])
+    if (loading)          setConnStatus('connecting')
+    else if (error)       setConnStatus('error')
+    else if (isPolling)   setConnStatus('live')
+    else                  setConnStatus('live')
+  }, [loading, error, isPolling])
  
   // Fetch P-H diagram for latest record
   useEffect(() => {
@@ -328,6 +340,7 @@ export default function DashboardPage() {
                 const s = toLocalDT(past), e = toLocalDT(now)
                 setStart(s); setEnd(e)
                 fetch(c, s, e)
+                // If live mode is on, polling will automatically restart with new compressor
               }}
               style={{
                 width: '100%', textAlign: 'left',
@@ -356,6 +369,85 @@ export default function DashboardPage() {
           end={end} setEnd={setEnd}
           onSearch={doFetch}
         />
+
+        {/* 1b. Live Mode bar */}
+        <div style={{
+          background: 'var(--bg1)', border: `1px solid ${isPolling ? 'var(--green)' : 'var(--border)'}`,
+          borderRadius: 12, padding: '10px 16px',
+          display: 'flex', alignItems: 'center', gap: 12,
+          transition: 'border-color 0.3s',
+        }}>
+          {/* Pulse dot */}
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: isPolling ? 'var(--green)' : 'var(--text-3)',
+            boxShadow: isPolling ? '0 0 0 3px rgba(63,185,80,0.25)' : 'none',
+            flexShrink: 0,
+            animation: isPolling ? 'pulse-dot 1.5s ease-in-out infinite' : 'none',
+          }} />
+
+          <span style={{ fontSize: 12, fontWeight: 600, color: isPolling ? 'var(--green)' : 'var(--text-2)', minWidth: 80 }}>
+            {isPolling ? '⚡ Live Mode' : 'Static Mode'}
+          </span>
+
+          {/* Toggle */}
+          <button
+            onClick={() => {
+              const next = !liveMode
+              setLiveMode(next)
+              if (!next) {
+                setPollInterval(null)
+              } else {
+                const defaultPoll = 10_000
+                setPollInterval(defaultPoll)
+                // Kick off immediately with sliding 2h window
+                const now  = new Date()
+                const past = new Date(now - 2 * 3600 * 1000)
+                const s = toLocalDT(past), e = toLocalDT(now)
+                setStart(s); setEnd(e)
+                fetch(comp, s, e)
+              }
+            }}
+            style={{
+              width: 44, height: 24, borderRadius: 12, border: 'none',
+              background: liveMode ? 'var(--green)' : 'var(--bg2)',
+              cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+              outline: '1px solid var(--border)',
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: 3, left: liveMode ? 22 : 3,
+              width: 18, height: 18, borderRadius: '50%',
+              background: liveMode ? '#fff' : 'var(--text-3)',
+              transition: 'left 0.2s', display: 'block',
+            }} />
+          </button>
+
+          {/* Poll interval selector */}
+          {liveMode && (
+            <>
+              <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 4 }}>Refresh ทุก</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {POLL_OPTIONS.filter(o => o.value !== null).map(o => (
+                  <button key={o.value}
+                    onClick={() => setPollInterval(o.value)}
+                    style={{
+                      padding: '4px 10px', fontSize: 11, fontWeight: 500,
+                      background: pollInterval === o.value ? 'var(--green-dim, rgba(63,185,80,0.15))' : 'var(--bg2)',
+                      border: `1px solid ${pollInterval === o.value ? 'var(--green)' : 'var(--border)'}`,
+                      borderRadius: 8,
+                      color: pollInterval === o.value ? 'var(--green)' : 'var(--text-2)',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}
+                  >{o.label}</button>
+                ))}
+              </div>
+              <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 'auto', fontStyle: 'italic' }}>
+                ข้อมูลจะอัปเดตอัตโนมัติ • ช่วงเวลาจะเลื่อนตาม now
+              </span>
+            </>
+          )}
+        </div>
  
         {/* 2. KPI cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
