@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
+import api from '../../services/api'
 
 function Clock() {
   const [time, setTime] = useState('')
@@ -26,13 +27,41 @@ const NAV_LINKS = [
   { to: '/ph-diagram',label: 'P-H'       },
 ]
 
-export default function Navbar({ connStatus = 'connecting' }) {
+// ── Connection probe: ping /api/metrics/COMP-01 ทุก 30s ──────────
+function useConnectionStatus() {
+  const [status, setStatus] = useState('connecting')
+  const timerRef = useRef(null)
+
+  const probe = async () => {
+    try {
+      await api.get('/api/metrics/COMP-01', { params: { limit: 1 }, timeout: 8000 })
+      setStatus('live')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  useEffect(() => {
+    probe()
+    timerRef.current = setInterval(probe, 30000)
+    return () => clearInterval(timerRef.current)
+  }, [])
+
+  return status
+}
+
+export default function Navbar({ connStatus: connStatusProp }) {
   const { theme, toggle } = useTheme()
   const { logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
   const isDark = theme === 'dark'
+
+  // ถ้ามี prop ส่งมา (DashboardPage) ใช้ prop นั้น
+  // ถ้าไม่มี (หน้าอื่น) ใช้ probe ของตัวเอง
+  const probedStatus = useConnectionStatus()
+  const connStatus = connStatusProp ?? probedStatus
 
   const handleLogout = () => {
     logout()

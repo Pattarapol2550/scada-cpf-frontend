@@ -40,15 +40,14 @@ export default function PHDiagramPage() {
 
   // ── API call ───────────────────────────────────────────
   const load = async () => {
-    setLoading(true); setError(null); setData(null)
+    setLoading(true); setError(null); setData(null)   // ล้างกราฟเก่าทันที
     try {
       const params = useTimestamp ? { timestamp: new Date(timestamp).toISOString() } : {}
       const res = await getPHDiagram(comp, params)
       setData(res.data)
     } catch (err) {
       const detail = err?.response?.data?.detail
-      if (detail) setError(detail)
-      else setError('ไม่สามารถโหลดข้อมูลได้')
+      setError(detail || 'ไม่สามารถโหลดข้อมูลได้')
     }
     finally { setLoading(false) }
   }
@@ -92,144 +91,193 @@ export default function PHDiagramPage() {
     if (!chartRef.current || !cycle) return
     setExporting(true)
     try {
-      // dynamic import เพื่อไม่ให้หน้าอื่นโหลดช้า
       const jsPDF = (await import('jspdf')).default
-
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
       const W = doc.internal.pageSize.getWidth()   // 297
       const H = doc.internal.pageSize.getHeight()  // 210
 
-      // ── Header ────────────────────────────────────────
-      doc.setFillColor(22, 27, 34)
-      doc.rect(0, 0, W, 18, 'F')
+      // ── Color palette (light/formal) ───────────────────
+      const C = {
+        white:      [255, 255, 255],
+        bg:         [248, 249, 250],   // header/footer bg
+        border:     [220, 225, 230],   // divider lines
+        cardBg:     [255, 255, 255],   // card fill
+        cardBorder: [220, 225, 230],
+        title:      [30,  40,  55],    // main heading
+        label:      [100, 110, 125],   // small labels
+        value:      [30,  40,  55],    // data values
+        accent:     [30,  100, 200],   // point headers, section titles
+        accentVal:  [15,  120, 80],    // efficiency value
+      }
 
-      doc.setTextColor(240, 136, 62)
-      doc.setFontSize(13)
+      // ── helper: format timestamp without locale (jsPDF ไม่รองรับ thai font)
+      const fmtTS = (isoStr) => {
+        if (!isoStr) return '--'
+        const d = new Date(isoStr)
+        const pad = n => String(n).padStart(2, '0')
+        // +7 manual
+        const utc = d.getTime() + 7 * 3600000
+        const local = new Date(utc)
+        return `${local.getUTCFullYear()}-${pad(local.getUTCMonth()+1)}-${pad(local.getUTCDate())}` +
+               `  ${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}:${pad(local.getUTCSeconds())}`
+      }
+
+      // ── Header bar ────────────────────────────────────
+      doc.setFillColor(...C.bg)
+      doc.rect(0, 0, W, 20, 'F')
+      // bottom border line
+      doc.setDrawColor(...C.border)
+      doc.setLineWidth(0.3)
+      doc.line(0, 20, W, 20)
+
+      doc.setTextColor(...C.title)
+      doc.setFontSize(14)
       doc.setFont('helvetica', 'bold')
-      doc.text(`P-H Diagram — ${comp}`, 12, 11)
+      doc.text(`P-H Diagram  |  ${comp}`, 12, 13)
 
-      doc.setTextColor(140, 148, 156)
+      doc.setTextColor(...C.label)
       doc.setFontSize(8)
       doc.setFont('helvetica', 'normal')
-      const tsLabel = data?.timestamp
-        ? new Date(data.timestamp).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', hour12: false,
-            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-        : '--'
-      doc.text(`Timestamp: ${tsLabel}`, W - 12, 11, { align: 'right' })
+      doc.text(`Timestamp: ${fmtTS(data?.timestamp)}`, W - 12, 13, { align: 'right' })
+
+      // ── White body background ──────────────────────────
+      doc.setFillColor(...C.white)
+      doc.rect(0, 20, W, H - 28, 'F')
 
       // ── Chart image ───────────────────────────────────
-      // ใช้ canvas จาก chartRef โดยตรง (ไม่ต้องสร้างใหม่)
       const canvas = chartRef.current.canvas
       const imgData = canvas.toDataURL('image/png', 1.0)
-
       const chartX = 10
-      const chartY = 22
-      const chartW = 190
-      const chartH = (chartW / canvas.width) * canvas.height
+      const chartY = 24
+      const chartW = 188
+      const chartH = Math.min((chartW / canvas.width) * canvas.height, 150)
+      doc.addImage(imgData, 'PNG', chartX, chartY, chartW, chartH)
 
-      doc.addImage(imgData, 'PNG', chartX, chartY, chartW, Math.min(chartH, 155))
+      // ── Right panel ────────────────────────────────────
+      const RX = 203    // right panel x
+      const RW = 86     // right panel width
+      let   RY = 24
 
-      // ── Cycle points table (ด้านขวา) ─────────────────
-      const tableX = 206
-      let   tableY = 22
-
-      doc.setFontSize(8)
+      // section: Cycle Points
+      doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(240, 136, 62)
-      doc.text('Cycle Points', tableX, tableY)
-      tableY += 6
+      doc.setTextColor(...C.accent)
+      doc.text('CYCLE POINTS', RX, RY + 4)
+      RY += 8
 
       const points = [
-        { label: 'Pt 1 — Evap outlet', pt: cycle.point1 },
-        { label: 'Pt 2 — Comp outlet', pt: cycle.point2 },
-        { label: 'Pt 3 — Cond outlet', pt: cycle.point3 },
-        { label: 'Pt 4 — Exp inlet',   pt: cycle.point4 },
+        { label: 'Point 1  —  Evaporator outlet', pt: cycle.point1 },
+        { label: 'Point 2  —  Compressor outlet', pt: cycle.point2 },
+        { label: 'Point 3  —  Condenser outlet',  pt: cycle.point3 },
+        { label: 'Point 4  —  Expansion inlet',   pt: cycle.point4 },
       ]
 
       for (const { label, pt } of points) {
         if (!pt) continue
-        // row background
-        doc.setFillColor(28, 35, 51)
-        doc.roundedRect(tableX, tableY, 82, 22, 2, 2, 'F')
+        // card outline
+        doc.setDrawColor(...C.cardBorder)
+        doc.setLineWidth(0.25)
+        doc.setFillColor(...C.cardBg)
+        doc.roundedRect(RX, RY, RW, 21, 1.5, 1.5, 'FD')
 
-        doc.setFontSize(7)
+        doc.setFontSize(6.5)
         doc.setFont('helvetica', 'bold')
-        doc.setTextColor(230, 237, 243)
-        doc.text(label, tableX + 3, tableY + 5)
+        doc.setTextColor(...C.value)
+        doc.text(label, RX + 3, RY + 5.5)
 
         doc.setFont('helvetica', 'normal')
-        doc.setTextColor(140, 148, 156)
-        doc.text(`h = ${pt.h} kJ/kg`, tableX + 3,  tableY + 11)
-        doc.text(`P = ${pt.p} MPa`,   tableX + 42, tableY + 11)
-        if (pt.t_c != null)
-          doc.text(`T = ${pt.t_c} °C`, tableX + 3, tableY + 17)
-
-        tableY += 26
+        doc.setTextColor(...C.label)
+        doc.text(`h = ${pt.h} kJ/kg`, RX + 3,  RY + 11)
+        doc.text(`P = ${pt.p} MPa`,   RX + 44, RY + 11)
+        if (pt.t_c != null) {
+          doc.setTextColor(...C.value)
+          doc.text(`T = ${pt.t_c} °C`, RX + 3, RY + 17)
+        }
+        RY += 25
       }
 
-      // ── Isentropic efficiency ─────────────────────────
+      // section: Isentropic Efficiency
       if (cycle.isentropic_efficiency != null) {
-        tableY += 2
-        doc.setFillColor(28, 35, 51)
-        doc.roundedRect(tableX, tableY, 82, 14, 2, 2, 'F')
+        RY += 2
+        doc.setDrawColor(...C.cardBorder)
+        doc.setFillColor(...C.bg)
+        doc.roundedRect(RX, RY, RW, 16, 1.5, 1.5, 'FD')
 
+        doc.setFontSize(6.5)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...C.label)
+        doc.text('ISENTROPIC EFFICIENCY', RX + 3, RY + 5.5)
+
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...C.accentVal)
+        doc.text(`${(cycle.isentropic_efficiency * 100).toFixed(1)} %`, RX + 3, RY + 13.5)
+        RY += 20
+      }
+
+      // section: Sensor Inputs
+      const inp = data?.inputs_snapshot
+      const inputRows = inp ? [
+        ['SP', inp.sp_kg,         'kg/cm2'],
+        ['DP', inp.dp_kg,         'kg/cm2'],
+        ['ST', inp.st_c,          'deg C'],
+        ['DT', inp.dt_c,          'deg C'],
+        ['Liq Temp', inp.liquid_temp_c, 'deg C'],
+        ['Current',  inp.current_amp,   'A'],
+      ].filter(([, v]) => v != null) : []
+
+      if (inputRows.length > 0) {
+        RY += 2
         doc.setFontSize(7)
         doc.setFont('helvetica', 'bold')
-        doc.setTextColor(140, 148, 156)
-        doc.text('Isentropic Efficiency', tableX + 3, tableY + 5)
+        doc.setTextColor(...C.accent)
+        doc.text('SENSOR INPUTS', RX, RY + 4)
+        RY += 8
 
-        doc.setFontSize(11)
-        doc.setTextColor(57, 197, 207)
-        doc.text(`${(cycle.isentropic_efficiency * 100).toFixed(1)} %`, tableX + 3, tableY + 12)
-        tableY += 18
-      }
+        doc.setDrawColor(...C.cardBorder)
+        doc.setFillColor(...C.cardBg)
+        doc.roundedRect(RX, RY, RW, inputRows.length * 7 + 4, 1.5, 1.5, 'FD')
 
-      // ── Inputs snapshot (ถ้ามี) ───────────────────────
-      const inp = data?.inputs_snapshot
-      if (inp) {
-        tableY += 4
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(240, 136, 62)
-        doc.text('Sensor Inputs', tableX, tableY)
-        tableY += 5
-
-        const rows = [
-          ['SP', inp.sp_kg,        'kg/cm²'],
-          ['DP', inp.dp_kg,        'kg/cm²'],
-          ['ST', inp.st_c,         '°C'],
-          ['DT', inp.dt_c,         '°C'],
-          ['Liq Temp', inp.liquid_temp_c, '°C'],
-          ['Current', inp.current_amp, 'A'],
-        ].filter(([,v]) => v != null)
-
-        doc.setFillColor(22, 30, 46)
-        doc.roundedRect(tableX, tableY, 82, rows.length * 7 + 4, 2, 2, 'F')
-
-        for (let i = 0; i < rows.length; i++) {
-          const [key, val, unit] = rows[i]
-          doc.setFontSize(7)
+        for (let i = 0; i < inputRows.length; i++) {
+          const [key, val, unit] = inputRows[i]
+          const rowY = RY + 6 + i * 7
+          doc.setFontSize(6.5)
           doc.setFont('helvetica', 'normal')
-          doc.setTextColor(140, 148, 156)
-          doc.text(key, tableX + 3, tableY + 5 + i * 7)
-          doc.setTextColor(200, 210, 220)
-          doc.text(`${val} ${unit}`, tableX + 30, tableY + 5 + i * 7)
+          doc.setTextColor(...C.label)
+          doc.text(key, RX + 3, rowY)
+          doc.setTextColor(...C.value)
+          doc.setFont('helvetica', 'bold')
+          doc.text(`${val}`, RX + 32, rowY)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(...C.label)
+          doc.text(unit, RX + 54, rowY)
         }
       }
 
-      // ── Footer ────────────────────────────────────────
-      doc.setFillColor(22, 27, 34)
-      doc.rect(0, H - 8, W, 8, 'F')
-      doc.setFontSize(7)
-      doc.setTextColor(80, 90, 100)
-      doc.text('Generated by Compressor Monitor', 12, H - 2.5)
-      doc.text(new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', hour12: false }), W - 12, H - 2.5, { align: 'right' })
+      // ── Divider between chart and right panel ──────────
+      doc.setDrawColor(...C.border)
+      doc.setLineWidth(0.25)
+      doc.line(RX - 4, 24, RX - 4, H - 10)
 
-      const fileName = `ph_diagram_${comp}_${(data?.timestamp || new Date().toISOString()).slice(0, 16).replace('T','_')}.pdf`
+      // ── Footer ────────────────────────────────────────
+      doc.setFillColor(...C.bg)
+      doc.rect(0, H - 9, W, 9, 'F')
+      doc.setDrawColor(...C.border)
+      doc.setLineWidth(0.3)
+      doc.line(0, H - 9, W, H - 9)
+
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...C.label)
+      doc.text('Compressor Monitor  |  Ammonia Refrigeration Diagnostics', 12, H - 3)
+      const nowStr = fmtTS(new Date().toISOString())
+      doc.text(`Generated: ${nowStr}`, W - 12, H - 3, { align: 'right' })
+
+      const fileName = `ph_diagram_${comp}_${fmtTS(data?.timestamp || new Date().toISOString()).slice(0,10)}.pdf`
       doc.save(fileName)
     } catch (e) {
       console.error('PDF export failed', e)
-      alert('Export PDF ไม่สำเร็จ: ' + e.message)
+      alert('Export PDF failed: ' + e.message)
     } finally {
       setExporting(false)
     }
@@ -296,26 +344,46 @@ export default function PHDiagramPage() {
 
           <div style={{ flex: 1 }} />
 
-          {/* Timestamp label */}
-          {data && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
-                color: useTimestamp ? 'var(--blue, #388bfd)' : 'var(--text-3)',
-                background: useTimestamp ? 'var(--blue-dim, rgba(56,139,253,0.12))' : 'var(--bg2)',
-                border: '1px solid', borderColor: useTimestamp ? 'var(--blue, #388bfd)' : 'var(--border)',
-                borderRadius: 6, padding: '2px 8px',
-              }}>
-                {useTimestamp ? '📌 ข้อมูล ณ เวลา' : '🕐 ล่าสุด'}
+          {/* ── Selected-time badge (always visible in timestamp mode) ── */}
+          {useTimestamp && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'var(--bg2)', border: '1px solid var(--border)',
+              borderRadius: 8, padding: '4px 10px',
+            }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+                เลือกเวลา
               </span>
-              <span style={{ fontSize: 11, color: 'var(--text-1)', fontFamily: 'monospace', fontWeight: 600 }}>
-                {data.timestamp
-                  ? new Date(data.timestamp).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', hour12: false,
-                      day: '2-digit', month: 'short', year: 'numeric',
-                      hour: '2-digit', minute: '2-digit', second: '2-digit' })
-                  : '--'}
+              <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-1)', fontWeight: 600 }}>
+                {timestamp.replace('T', '  ')}
               </span>
             </div>
           )}
+
+          {/* Timestamp of loaded data
+          {data && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                color: useTimestamp ? 'var(--blue, #388bfd)' : 'var(--text-3)',
+                background: useTimestamp ? 'rgba(56,139,253,0.12)' : 'var(--bg2)',
+                border: '1px solid', borderColor: useTimestamp ? 'var(--blue, #388bfd)' : 'var(--border)',
+                borderRadius: 6, padding: '2px 7px',
+              }}>
+                {useTimestamp ? '📌 ข้อมูล ณ' : '🕐 ล่าสุด'}
+              </span>
+              <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-1)', fontWeight: 600 }}>
+                {data.timestamp
+                  ? (() => {
+                      const d = new Date(data.timestamp)
+                      const p = n => String(n).padStart(2,'0')
+                      const u = new Date(d.getTime() + 7*3600000)
+                      return `${u.getUTCFullYear()}-${p(u.getUTCMonth()+1)}-${p(u.getUTCDate())}  ${p(u.getUTCHours())}:${p(u.getUTCMinutes())}:${p(u.getUTCSeconds())}`
+                    })()
+                  : '--'}
+              </span>
+            </div>
+          )} */}
 
           {/* Export PDF */}
           <button
@@ -344,13 +412,17 @@ export default function PHDiagramPage() {
           <div style={{ position: 'relative', height: 480 }}>
             {loading && <div style={{ position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)',fontSize:13 }}>Loading…</div>}
             {error   && (
-              <div style={{ position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8 }}>
-                <span style={{ fontSize:28, opacity:0.5 }}>🔍</span>
-                <span style={{ fontSize:13, color:'var(--red, #f85149)', fontWeight:600 }}>{error}</span>
+              <div style={{ position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,
+                background:'var(--bg1)', borderRadius:8 }}>
+                <span style={{ fontSize:32, opacity:0.5 }}>🔍</span>
+                <span style={{ fontSize:14, fontWeight:600, color:'var(--red,#f85149)' }}>{error}</span>
                 {useTimestamp && (
                   <span style={{ fontSize:11, color:'var(--text-3)' }}>
-                    ลองเลือกเวลาอื่น หรือตรวจสอบว่ามีข้อมูลในช่วงนั้น
+                    ไม่พบข้อมูล ณ เวลา <span style={{ fontFamily:'monospace', color:'var(--text-2)' }}>{timestamp.replace('T','  ')}</span>
                   </span>
+                )}
+                {useTimestamp && (
+                  <span style={{ fontSize:10, color:'var(--text-3)' }}>ลองเลือกเวลาอื่น หรือตรวจสอบว่ามีข้อมูลในช่วงนั้น</span>
                 )}
               </div>
             )}
