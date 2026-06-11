@@ -10,7 +10,7 @@ const COMPRESSORS = ['COMP-01','COMP-02','COMP-03','COMP-04','COMP-05','COMP-06'
 
 function toLocalDT(date) {
   const p = n => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`
+  return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`
 }
 
 function getXRange(cycle) {
@@ -40,13 +40,16 @@ export default function PHDiagramPage() {
 
   // ── API call ───────────────────────────────────────────
   const load = async () => {
-    setLoading(true); setError(null)
+    setLoading(true); setError(null); setData(null)
     try {
-      // ถ้า useTimestamp ให้ส่ง ?timestamp=... ไปด้วย
       const params = useTimestamp ? { timestamp: new Date(timestamp).toISOString() } : {}
       const res = await getPHDiagram(comp, params)
       setData(res.data)
-    } catch { setError('ไม่สามารถโหลดข้อมูลได้') }
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      if (detail) setError(detail)
+      else setError('ไม่สามารถโหลดข้อมูลได้')
+    }
     finally { setLoading(false) }
   }
 
@@ -272,6 +275,7 @@ export default function PHDiagramPage() {
               <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)' }}>เวลา</span>
               <input
                 type="datetime-local"
+                step ="1"
                 value={timestamp}
                 onChange={e => setTimestamp(e.target.value)}
                 style={{
@@ -294,12 +298,23 @@ export default function PHDiagramPage() {
 
           {/* Timestamp label */}
           {data && (
-            <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>
-              {useTimestamp ? 'เวลาที่ดึง:' : 'ล่าสุด:'}{' '}
-              {data.timestamp
-                ? new Date(data.timestamp).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', hour12: false, day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                : '--'}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+                color: useTimestamp ? 'var(--blue, #388bfd)' : 'var(--text-3)',
+                background: useTimestamp ? 'var(--blue-dim, rgba(56,139,253,0.12))' : 'var(--bg2)',
+                border: '1px solid', borderColor: useTimestamp ? 'var(--blue, #388bfd)' : 'var(--border)',
+                borderRadius: 6, padding: '2px 8px',
+              }}>
+                {useTimestamp ? '📌 ข้อมูล ณ เวลา' : '🕐 ล่าสุด'}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-1)', fontFamily: 'monospace', fontWeight: 600 }}>
+                {data.timestamp
+                  ? new Date(data.timestamp).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', hour12: false,
+                      day: '2-digit', month: 'short', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                  : '--'}
+              </span>
+            </div>
           )}
 
           {/* Export PDF */}
@@ -328,7 +343,17 @@ export default function PHDiagramPage() {
           </div>
           <div style={{ position: 'relative', height: 480 }}>
             {loading && <div style={{ position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)',fontSize:13 }}>Loading…</div>}
-            {error   && <div style={{ position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--red)',fontSize:13 }}>{error}</div>}
+            {error   && (
+              <div style={{ position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8 }}>
+                <span style={{ fontSize:28, opacity:0.5 }}>🔍</span>
+                <span style={{ fontSize:13, color:'var(--red, #f85149)', fontWeight:600 }}>{error}</span>
+                {useTimestamp && (
+                  <span style={{ fontSize:11, color:'var(--text-3)' }}>
+                    ลองเลือกเวลาอื่น หรือตรวจสอบว่ามีข้อมูลในช่วงนั้น
+                  </span>
+                )}
+              </div>
+            )}
             {chartData && (
               <Scatter
                 ref={chartRef}
