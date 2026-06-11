@@ -1,3 +1,6 @@
+# Link
+https://dashboard-cpf-frontend.vercel.app/
+
 # SCADA Frontend — Ammonia Chiller Monitor
 
 React + Vite frontend สำหรับ dashboard ระบบทำความเย็น Ammonia
