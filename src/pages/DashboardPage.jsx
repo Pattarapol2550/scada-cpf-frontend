@@ -56,101 +56,6 @@ const CHART_DEFAULTS = {
   },
 }
  
-// ── StickyYChart ─────────────────────────────────────────
-// แสดง Y axis แยกทางซ้าย (fixed) + plot area scroll ได้ทางขวา
-// props: data, options, height, plotWidth, scrollRef, chartKey
-function StickyYChart({ data, options, height, plotWidth, scrollRef, chartKey, onClickPoint }) {
-  const yAxisRef  = useRef(null)   // canvas ฝั่ง Y axis
-  const plotRef   = useRef(null)   // canvas ฝั่ง plot
-  const yChartRef = useRef(null)
-  const pChartRef = useRef(null)
-
-  const Y_WIDTH = 56  // ความกว้างพื้นที่ Y axis
-
-  useEffect(() => {
-    // ── destroy ก่อนถ้ามีอยู่แล้ว
-    if (yChartRef.current) { yChartRef.current.destroy(); yChartRef.current = null }
-    if (pChartRef.current) { pChartRef.current.destroy(); pChartRef.current = null }
-
-    if (!yAxisRef.current || !plotRef.current) return
-
-    // options สำหรับ Y-axis-only chart (ซ่อน x axis และ plot area)
-    const yOpts = {
-      ...options,
-      responsive: false,
-      animation: false,
-      layout: { padding: { right: 0 } },
-      plugins: { ...options.plugins, legend: { display: false }, tooltip: { enabled: false } },
-      scales: {
-        x: {
-          ...options.scales?.x,
-          ticks: { display: false },
-          grid: { display: false, drawBorder: false },
-          border: { display: false },
-        },
-        y: {
-          ...options.scales?.y,
-          ticks: { ...options.scales?.y?.ticks, mirror: false },
-          grid: { ...options.scales?.y?.grid, drawOnChartArea: false },
-        },
-      },
-    }
-
-    // options สำหรับ plot chart (ซ่อน Y ticks + axis label)
-    const plotOpts = {
-      ...options,
-      responsive: false,
-      animation: false,
-      layout: { padding: { left: 0 } },
-      scales: {
-        x: { ...options.scales?.x },
-        y: {
-          ...options.scales?.y,
-          ticks: { display: false },
-          title: { display: false },
-          grid: { ...options.scales?.y?.grid },
-          border: { display: false },
-        },
-      },
-      onClick: onClickPoint,
-      onHover: options.onHover,
-    }
-
-    yChartRef.current = new ChartJS(yAxisRef.current, {
-      type: 'line',
-      data: { labels: data.labels, datasets: data.datasets.map(d => ({ ...d, pointRadius: 0 })) },
-      options: yOpts,
-    })
-
-    pChartRef.current = new ChartJS(plotRef.current, {
-      type: 'line',
-      data,
-      options: plotOpts,
-    })
-
-    return () => {
-      yChartRef.current?.destroy()
-      pChartRef.current?.destroy()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartKey])
-
-  return (
-    <div style={{ display: 'flex', height, overflow: 'hidden' }}>
-      {/* Fixed Y axis */}
-      <div style={{ flexShrink: 0, width: Y_WIDTH, height }}>
-        <canvas ref={yAxisRef} width={Y_WIDTH} height={height} />
-      </div>
-      {/* Scrollable plot */}
-      <div className="cop-scroll" style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden' }} ref={scrollRef}>
-        <div style={{ position: 'relative', width: plotWidth, height }}>
-          <canvas ref={plotRef} width={plotWidth} height={height} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function mkDs(label, data, color) {
   return {
     label, data,
@@ -583,23 +488,38 @@ export default function DashboardPage() {
                 </span>
               </div>
             ) : (
-              <StickyYChart
-                chartKey={`cop-${rows.length}-${copPanelW}`}
-                height={220}
-                plotWidth={Math.max(rows.length * 30, (copPanelW - 56) || 1)}
-                scrollRef={copScrollRef}
-                data={{ labels, datasets: [mkDs('COP', diags.map(d => num(d.cop)), '#3fb950')] }}
-                options={{
-                  ...CHART_DEFAULTS,
-                  responsive: false,
-                  onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default' },
-                  plugins: {
-                    ...CHART_DEFAULTS.plugins,
-                    tooltip: { ...CHART_DEFAULTS.plugins.tooltip, mode: 'point', intersect: true, callbacks: { footer: () => 'คลิกเพื่อดู Report ณ เวลานี้' } },
-                  },
-                }}
-                onClickPoint={(_, els) => els.length && showRecord(els[0].index)}
-              />
+              <div className="cop-scroll" style={{ maxWidth: "100%" }} ref={copScrollRef}>
+                <div style={{ position: 'relative', height: 220, width: Math.max(rows.length * 30, copPanelW || 1) }}>
+                  <Line
+                    key={`${rows.length}-${copPanelW}`}
+                    data={{
+                      labels,
+                      datasets: [
+                        mkDs('COP', diags.map(d => num(d.cop)), '#3fb950'),
+                      ],
+                    }}
+                    width={Math.max(rows.length * 30, copPanelW || 1)}
+                    height={220}
+                    options={{
+                      ...CHART_DEFAULTS,
+                      responsive: false,
+                      onClick: (_, els) => els.length && showRecord(els[0].index),
+                      onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default' },
+                      plugins: {
+                        ...CHART_DEFAULTS.plugins,
+                        tooltip: {
+                          ...CHART_DEFAULTS.plugins.tooltip,
+                          mode: 'point',
+                          intersect: true,
+                          callbacks: {
+                            footer: () => 'คลิกเพื่อดู Report ณ เวลานี้'
+                          }
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              </div>
             )}
           </div>
  
@@ -644,14 +564,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <StickyYChart
-              chartKey={`press-${rows.length}-${secPanelW}`}
-              height={160}
-              plotWidth={Math.max(rows.length * 20, (secPanelW / 2 - 76) || 1)}
-              scrollRef={pressScrollRef}
-              data={{ labels, datasets: [mkDs('SP', inputs.map(i => num(i.sp_kg)), '#39c5cf'), mkDs('DP', inputs.map(i => num(i.dp_kg)), '#f85149')] }}
-              options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: 'kg/cm²', color: '#8b949e', font: { size: 9 } } } } }}
-            />
+            <div className="cop-scroll" ref={pressScrollRef}>
+              <div style={{ position: 'relative', height: 160, width: Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1) }}>
+                <Line key={`${rows.length}-${secPanelW}`} width={Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)} height={160}
+                  data={{ labels, datasets: [mkDs('SP', inputs.map(i => num(i.sp_kg)), '#39c5cf'), mkDs('DP', inputs.map(i => num(i.dp_kg)), '#f85149')] }}
+                  options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: 'kg/cm²', color: '#8b949e', font: { size: 9 } } } } }} />
+              </div>
+            </div>
           </div>
  
           {/* Temperature */}
@@ -667,14 +586,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <StickyYChart
-              chartKey={`temp-${rows.length}-${secPanelW}`}
-              height={160}
-              plotWidth={Math.max(rows.length * 20, (secPanelW / 2 - 76) || 1)}
-              scrollRef={tempScrollRef}
-              data={{ labels, datasets: [mkDs('ST', inputs.map(i => num(i.st_c)), '#39c5cf'), mkDs('DT', inputs.map(i => num(i.dt_c)), '#f85149'), mkDs('Liquid', inputs.map(i => num(i.liquid_temp_c)), '#a371f7')] }}
-              options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: '°C', color: '#8b949e', font: { size: 9 } } } } }}
-            />
+            <div className="cop-scroll" ref={tempScrollRef}>
+              <div style={{ position: 'relative', height: 160, width: Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1) }}>
+                <Line key={`${rows.length}-${secPanelW}`} width={Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)} height={160}
+                  data={{ labels, datasets: [mkDs('ST', inputs.map(i => num(i.st_c)), '#39c5cf'), mkDs('DT', inputs.map(i => num(i.dt_c)), '#f85149'), mkDs('Liquid', inputs.map(i => num(i.liquid_temp_c)), '#a371f7')] }}
+                  options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: '°C', color: '#8b949e', font: { size: 9 } } } } }} />
+              </div>
+            </div>
           </div>
  
           {/* Superheat / Subcooling */}
@@ -690,14 +608,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <StickyYChart
-              chartKey={`sh-${rows.length}-${secPanelW}`}
-              height={160}
-              plotWidth={Math.max(rows.length * 20, (secPanelW / 2 - 76) || 1)}
-              scrollRef={shScrollRef}
-              data={{ labels, datasets: [mkDs('Superheat', diags.map(d => num(d.superheat_suc)), '#f85149'), mkDs('Subcooling', diags.map(d => num(d.subcooling)), '#a371f7')] }}
-              options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: '°C', color: '#8b949e', font: { size: 9 } } } } }}
-            />
+            <div className="cop-scroll" ref={shScrollRef}>
+              <div style={{ position: 'relative', height: 160, width: Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1) }}>
+                <Line key={`${rows.length}-${secPanelW}`} width={Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)} height={160}
+                  data={{ labels, datasets: [mkDs('Superheat', diags.map(d => num(d.superheat_suc)), '#f85149'), mkDs('Subcooling', diags.map(d => num(d.subcooling)), '#a371f7')] }}
+                  options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: '°C', color: '#8b949e', font: { size: 9 } } } } }} />
+              </div>
+            </div>
           </div>
  
           {/* Power & Capacity */}
@@ -713,14 +630,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <StickyYChart
-              chartKey={`pw-${rows.length}-${secPanelW}`}
-              height={160}
-              plotWidth={Math.max(rows.length * 20, (secPanelW / 2 - 76) || 1)}
-              scrollRef={pwScrollRef}
-              data={{ labels, datasets: [mkDs('P_comp kW', diags.map(d => num(d.power_kw)), '#f0883e'), mkDs('Q_e kW', diags.map(d => num(d.q_e_kw)), '#39c5cf')] }}
-              options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: 'kW', color: '#8b949e', font: { size: 9 } } } } }}
-            />
+            <div className="cop-scroll" ref={pwScrollRef}>
+              <div style={{ position: 'relative', height: 160, width: Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1) }}>
+                <Line key={`${rows.length}-${secPanelW}`} width={Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)} height={160}
+                  data={{ labels, datasets: [mkDs('P_comp kW', diags.map(d => num(d.power_kw)), '#f0883e'), mkDs('Q_e kW', diags.map(d => num(d.q_e_kw)), '#39c5cf')] }}
+                  options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: 'kW', color: '#8b949e', font: { size: 9 } } } } }} />
+              </div>
+            </div>
           </div>
         </div>
  

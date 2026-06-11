@@ -228,25 +228,24 @@ export default function HistoryPage() {
 
   // ── Export helpers ────────────────────────────────────
   const flattenRecord = r => ({
-    Timestamp:       formatThaiTime(r.timestamp),
-    Compressor:      r.compressor_id,
-    'SP (kg/cm²)':   r.inputs_snapshot?.sp_kg ?? '--',
-    'ST (°C)':        r.inputs_snapshot?.st_c  ?? '--',
-    'DP (kg/cm²)':   r.inputs_snapshot?.dp_kg ?? '--',
-    'DT (°C)':        r.inputs_snapshot?.dt_c  ?? '--',
+    Timestamp:          formatThaiTime(r.timestamp),
+    Compressor:         r.compressor_id,
+    // ── Inputs ──────────────────────────────────────────
+    'SP (kg/cm²)':      r.inputs_snapshot?.sp_kg        ?? '--',
+    'DP (kg/cm²)':      r.inputs_snapshot?.dp_kg        ?? '--',
+    'ST (°C)':          r.inputs_snapshot?.st_c         ?? '--',
+    'DT (°C)':          r.inputs_snapshot?.dt_c         ?? '--',
     'Liquid Temp (°C)': r.inputs_snapshot?.liquid_temp_c ?? '--',
-    'Mass Flow (kg/s)': r.inputs_snapshot?.mass_flow_kg_s ?? '--',
-    'Current (A)':    r.inputs_snapshot?.current_amp ?? '--',
-    'Fan/Pump (kW)':  r.inputs_snapshot?.fan_pump_kw ?? '--',
-    'Actual COP':     r.diagnosis?.actual_cop ?? '--',
-    'System COP':     r.diagnosis?.system_cop ?? '--',
-    'Cycle COP':      r.diagnosis?.cycle_cop  ?? '--',
-    'Cooling Cap (kW)': r.diagnosis?.calculated_ql_kw ?? '--',
-    'Power (kW)':     r.diagnosis?.power_kw        ?? '--',
-    'Superheat (°C)': r.diagnosis?.superheat_suc   ?? '--',
-    'Subcooling (°C)':r.diagnosis?.subcooling       ?? '--',
-    'Press. Ratio':   r.diagnosis?.pressure_ratio   ?? '--',
-    Alarms:           (r.diagnosis?.alarms || []).map(a => a.title).join('; '),
+    'Current (A)':      r.inputs_snapshot?.current_amp  ?? '--',
+    // ── Diagnosis ────────────────────────────────────────
+    'COP':              r.diagnosis?.cop            ?? '--',
+    'P_comp (kW)':      r.diagnosis?.power_kw       ?? '--',
+    'Q_e (kW)':         r.diagnosis?.q_e_kw         ?? '--',
+    'Superheat (K)':    r.diagnosis?.superheat_suc  ?? '--',
+    'Subcooling (K)':   r.diagnosis?.subcooling      ?? '--',
+    'Press. Ratio':     r.diagnosis?.pressure_ratio  ?? '--',
+    'Mass Flow (kg/h)': r.diagnosis?.m_dot_kgh       ?? '--',
+    Alarms:             (r.diagnosis?.alarms || []).map(a => a.title).join('; '),
   })
 
   const exportCSV = () => {
@@ -315,19 +314,19 @@ export default function HistoryPage() {
 
           {/* Date inputs — disabled ใน live mode */}
           {[['เริ่ม', start, setStart], ['สิ้นสุด', end, setEnd]].map(([label, val, set]) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)' }}>{label}</span>
-              <input
-                type="datetime-local" value={val}
-                onChange={e => { set(e.target.value); setLiveMode(false) }}
-                disabled={liveMode}
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)' }}>{label}</span>
+            <input
+              type="datetime-local" value={val}
+              onChange={e => { set(e.target.value); setLiveMode(false) }}
+            
                 style={{
                   background: liveMode ? 'rgba(255,255,255,0.03)' : 'var(--bg2)',
                   border: '1px solid var(--border)', borderRadius: 8,
                   color: liveMode ? 'var(--text-3)' : 'var(--text-1)',
                   padding: '6px 10px', fontSize: 12, outline: 'none',
-                  cursor: liveMode ? 'not-allowed' : 'text',
-                  opacity: liveMode ? 0.5 : 1,
+                  cursor: 'text',
+                   opacity: liveMode ? 0.6 : 1, 
                 }}
               />
             </div>
@@ -372,7 +371,7 @@ export default function HistoryPage() {
           <div className="panel-header">
             <span className="panel-title">COP Trend</span>
             <div style={{ display: 'flex', gap: 12 }}>
-              {[['Actual','#3fb950'],['System','#d29922'],['Cycle','#ec6cb9']].map(([l,c]) => (
+              {[['COP','#3fb950']].map(([l,c]) => (
                 <span key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, color:'var(--text-2)', fontFamily:'monospace' }}>
                   <span style={{ width:7,height:7,borderRadius:'50%',background:c,display:'inline-block'}}/>
                   {l}
@@ -395,9 +394,7 @@ export default function HistoryPage() {
                   width={Math.max(rows.length * 20, chartPanelW || 1)}
                   height={180}
                   data={{ labels, datasets: [
-                    mkDs('Actual COP', diags.map(d => num(d.actual_cop)), '#3fb950'),
-                    mkDs('System COP', diags.map(d => num(d.system_cop)), '#d29922'),
-                    mkDs('Cycle COP',  diags.map(d => num(d.cycle_cop)),  '#ec6cb9'),
+                    mkDs('COP', diags.map(d => num(d.cop)), '#3fb950'),
                   ]}}
                   options={{ ...CHART_OPT, responsive: false }}
                 />
@@ -445,7 +442,13 @@ export default function HistoryPage() {
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                   <thead>
                     <tr>
-                      {['Timestamp','Actual COP','System COP','Superheat °C','Subcooling °C','Press. Ratio','Cooling kW','Power kW','Alarms'].map(h => (
+                      {[
+                        'Timestamp',
+                        'SP kg/cm²','DP kg/cm²','ST °C','DT °C','Liquid °C','Current A',
+                        'COP','P_comp kW','Q_e kW',
+                        'Superheat K','Subcooling K','Press. Ratio','Mass Flow kg/h',
+                        'Alarms',
+                      ].map(h => (
                         <th key={h} style={{ textAlign:'left', padding:'6px 10px 8px', fontSize:9, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-3)', borderBottom:'1px solid var(--border)', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -453,18 +456,30 @@ export default function HistoryPage() {
                   <tbody>
                     {pageRows.map((rec, i) => {
                       const d = rec.diagnosis || {}
+                      const inp = rec.inputs_snapshot || {}
                       const alarms = d.alarms || []
                       const hasCrit = alarms.some(a => a.severity === 'Critical')
+                      const cell = (v, highlight) => (
+                        <td style={{ padding:'6px 10px', fontFamily:'monospace', color: highlight ? 'var(--text-1)' : 'var(--text-2)', whiteSpace:'nowrap' }}>{v ?? '--'}</td>
+                      )
                       return (
                         <tr key={rec._id || i} style={{ borderBottom:'1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                           <td style={{ padding:'6px 10px', fontFamily:'monospace', fontSize:10, color:'var(--text-2)', whiteSpace:'nowrap' }}>{formatThaiTime(rec.timestamp)}</td>
-                          <td style={{ padding:'6px 10px', fontFamily:'monospace', color:'var(--text-1)' }}>{d.actual_cop ?? '--'}</td>
-                          <td style={{ padding:'6px 10px', fontFamily:'monospace', color:'var(--text-1)' }}>{d.system_cop ?? '--'}</td>
-                          <td style={{ padding:'6px 10px', fontFamily:'monospace', color:'var(--text-1)' }}>{d.superheat_suc ?? '--'}</td>
-                          <td style={{ padding:'6px 10px', fontFamily:'monospace', color:'var(--text-1)' }}>{d.subcooling ?? '--'}</td>
-                          <td style={{ padding:'6px 10px', fontFamily:'monospace', color:'var(--text-1)' }}>{d.pressure_ratio ?? '--'}</td>
-                          <td style={{ padding:'6px 10px', fontFamily:'monospace', color:'var(--text-1)' }}>{d.calculated_ql_kw ?? '--'}</td>
-                          <td style={{ padding:'6px 10px', fontFamily:'monospace', color:'var(--text-1)' }}>{d.power_kw ?? '--'}</td>
+                          {/* Inputs */}
+                          {cell(inp.sp_kg)}
+                          {cell(inp.dp_kg)}
+                          {cell(inp.st_c)}
+                          {cell(inp.dt_c)}
+                          {cell(inp.liquid_temp_c)}
+                          {cell(inp.current_amp)}
+                          {/* Diagnosis */}
+                          {cell(d.cop,           true)}
+                          {cell(d.power_kw,      true)}
+                          {cell(d.q_e_kw,        true)}
+                          {cell(d.superheat_suc, true)}
+                          {cell(d.subcooling,    true)}
+                          {cell(d.pressure_ratio,true)}
+                          {cell(d.m_dot_kgh)}
                           <td style={{ padding:'6px 10px' }}>
                             {alarms.length === 0 ? (
                               <span style={{ fontSize:9, padding:'1px 7px', borderRadius:20, background:'var(--green-dim)', color:'var(--green)', fontWeight:600 }}>Normal</span>

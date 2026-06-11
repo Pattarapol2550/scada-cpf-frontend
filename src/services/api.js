@@ -30,9 +30,7 @@ export const postMetrics = (payload) =>
 
 // ── P-H Diagram ──────────────────────────────────────────
 
-export const getPHDiagram = (compressorId, recordId = null) =>
-  api.get(`/api/ph-diagram/${compressorId}`, {
-    params: recordId ? { record_id: recordId } : {},
-  })
+export const getPHDiagram = (comp, params = {}) =>
+  axios.get(`/api/ph-diagram/${comp}`, { params })
 
 export default api
