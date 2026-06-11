@@ -39,11 +39,12 @@ export default function PHDiagramPage() {
   const chartRef = useRef(null)
 
   // ── API call ───────────────────────────────────────────
-  const load = async () => {
-    setLoading(true); setError(null); setData(null)   // ล้างกราฟเก่าทันที
+  // รับ compId เป็น argument เพื่อป้องกัน stale closure เมื่อ comp เปลี่ยน
+  const load = async (compId = comp) => {
+    setLoading(true); setError(null); setData(null)
     try {
       const params = useTimestamp ? { timestamp: new Date(timestamp).toISOString() } : {}
-      const res = await getPHDiagram(comp, params)
+      const res = await getPHDiagram(compId, params)
       setData(res.data)
     } catch (err) {
       const detail = err?.response?.data?.detail
@@ -53,7 +54,8 @@ export default function PHDiagramPage() {
   }
 
   // โหลดอัตโนมัติเมื่อ comp เปลี่ยน หรือสลับ latest ↔ เจาะเวลา
-  useEffect(() => { load() }, [comp, useTimestamp]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ส่ง comp เข้า load ตรงๆ เพื่อให้ได้ค่าล่าสุดเสมอ (ไม่ติด stale closure)
+  useEffect(() => { load(comp) }, [comp, useTimestamp]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cycle  = data?.cycle
   const dome   = data?.saturation_dome
@@ -313,7 +315,7 @@ export default function PHDiagramPage() {
                 color: useTimestamp ? 'var(--blue, #388bfd)' : 'var(--text-2)',
               }}
             >
-              🕐 เจาะเวลา
+              🕐 ระบุเวลา
             </button>
           </div>
 
@@ -333,7 +335,7 @@ export default function PHDiagramPage() {
               />
               <button
                 className="btn-primary"
-                onClick={load}
+                onClick={() => load(comp)}
                 disabled={loading}
                 style={{ fontSize: 11, padding: '5px 14px' }}
               >

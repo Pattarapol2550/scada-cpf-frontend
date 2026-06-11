@@ -37,3 +37,7 @@ Thumbs.db
 # Optional: lock files (เลือกอันใดอันหนึ่ง)
  yarn.lock
 # pnpm-lock.yaml
+
+# ── Playwright ──────────────────────────────────────────────
+test-results/
+playwright-report/

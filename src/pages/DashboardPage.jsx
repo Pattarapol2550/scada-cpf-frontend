@@ -61,7 +61,7 @@ function mkDs(label, data, color) {
     label, data,
     borderColor: color,
     backgroundColor: 'transparent',
-    borderWidth: 1.5, tension: 0.35, spanGaps: true, fill: false,
+    borderWidth: 1.5, tension: 0, spanGaps: true, fill: false,
     pointRadius: 3,
     pointBackgroundColor: color,
     pointBorderColor: color,
@@ -205,7 +205,12 @@ export default function DashboardPage() {
     else                  setConnStatus('live')
   }, [loading, error, isPolling])
  
-  // Fetch P-H diagram for latest record
+  // ล้างกราฟทันทีเมื่อเปลี่ยน comp — ป้องกันกราฟเก่าค้าง
+  useEffect(() => {
+    setPhData(null)
+  }, [comp])
+
+  // Fetch P-H diagram for latest record (หลังจาก records โหลดมาแล้ว)
   useEffect(() => {
     if (!records.length) return
     getPHDiagram(comp).then(r => setPhData(r.data)).catch(() => {})
@@ -290,13 +295,13 @@ export default function DashboardPage() {
         label: 'Saturation liquid',
         data: phData.saturation_dome.liquid.map(p => ({ x: p.h, y: p.p })),
         borderColor: '#39c5cf', backgroundColor: 'rgba(57,197,207,0.06)',
-        borderWidth: 1.5, showLine: true, tension: 0.4, pointRadius: 0, fill: true,
+        borderWidth: 1.5, showLine: true, tension: 0, pointRadius: 0, fill: true,
       },
       {
         label: 'Saturation vapour',
         data: phData.saturation_dome.vapour.map(p => ({ x: p.h, y: p.p })),
         borderColor: '#39c5cf', backgroundColor: 'transparent',
-        borderWidth: 1.5, showLine: true, tension: 0.4, pointRadius: 0,
+        borderWidth: 1.5, showLine: true, tension: 0, pointRadius: 0,
       },
       {
         label: 'Cycle',

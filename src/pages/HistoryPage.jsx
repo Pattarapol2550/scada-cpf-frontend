@@ -384,7 +384,7 @@ export default function HistoryPage() {
           ) : rows.length === 0 ? (
             <div style={{ height: 180, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, background:'var(--bg2)', borderRadius:8 }}>
               <span style={{ fontSize:20, opacity:.4 }}>📭</span>
-              <span style={{ fontSize:13, color:'var(--text-2)' }}>ไม่พบข้อมูลในช่วงเวลาที่เลือก</span>
+              <span style={{ fontSize:13, color:'var(--text-2)' }}>ไม่พบข้อมูลสำหรับแสดงกราฟ</span>
             </div>
           ) : (
             <div className="cop-scroll" ref={chartScrollRef}>
