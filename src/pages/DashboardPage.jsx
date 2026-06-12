@@ -4,6 +4,7 @@ import KPICard from '../components/dashboard/KPICard'
 import AlarmLog from '../components/dashboard/AlarmLog'
 import DiagnosisReport from '../components/dashboard/DiagnosisReport'
 import { useMetrics } from '../hooks/useMetrics'
+import { useAuth } from '../context/AuthContext'
 import { getPHDiagram } from '../services/api'
 import {
   Chart as ChartJS,
@@ -161,6 +162,7 @@ const POLL_OPTIONS = [
 ]
 
 export default function DashboardPage() {
+  const { user } = useAuth()
   const [comp, setComp]     = useState('COMP-01')
   const [start, setStart]   = useState('')
   const [end, setEnd]       = useState('')
@@ -322,6 +324,30 @@ export default function DashboardPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg0)' }}>
       <Navbar connStatus={connStatus} />
+
+      {/* ── Greeting + Role badge ── */}
+      {user?.username && (
+        <div style={{
+          padding: '8px 20px',
+          background: 'var(--bg1)',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>
+            สวัสดี, {user.username} 👋
+          </span>
+          <span style={{
+            fontSize: 10, fontWeight: 700,
+            padding: '2px 8px', borderRadius: 20,
+            background: user.role === 'admin' ? 'var(--blue-dim)' : 'var(--bg3)',
+            color:      user.role === 'admin' ? 'var(--blue)'     : 'var(--text-3)',
+            border: `1px solid ${user.role === 'admin' ? 'var(--blue)' : 'var(--border)'}`,
+            textTransform: 'uppercase', letterSpacing: '0.06em',
+          }}>
+            {user.role === 'admin' ? '⚡ Admin' : 'User'}
+          </span>
+        </div>
+      )}
  
       <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)' }}>
  

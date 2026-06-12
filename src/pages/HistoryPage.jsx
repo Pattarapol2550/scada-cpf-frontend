@@ -34,7 +34,7 @@ function mkDs(label, data, color) {
   return {
     label, data, borderColor: color,
     backgroundColor: 'transparent',
-    borderWidth: 1.5, tension: 0.35, spanGaps: true, fill: false,
+    borderWidth: 1.5, tension: 0, spanGaps: true, fill: false,
     pointRadius: 2, pointBackgroundColor: color,
     pointHoverRadius: 5, pointHoverBackgroundColor: color,
   }
