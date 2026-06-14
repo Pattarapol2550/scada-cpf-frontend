@@ -21,10 +21,11 @@ function Clock() {
 }
 
 const NAV_LINKS = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/history',   label: 'History'   },
-  { to: '/input',     label: 'Input'     },
-  { to: '/ph-diagram',label: 'P-H'       },
+  { to: '/dashboard',   label: 'Dashboard'   },
+  { to: '/history',     label: 'History'     },
+  { to: '/input',       label: 'Input'       },
+  { to: '/ph-diagram',  label: 'P-H'         },
+  { to: '/calculator',  label: 'Calculator'  },  // ← เพิ่ม
 ]
 
 // ── Connection probe: ping /api/metrics/COMP-01 ทุก 30s ──────────

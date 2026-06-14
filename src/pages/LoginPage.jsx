@@ -219,7 +219,6 @@ export default function LoginPage() {
             <Field label="ชื่อผู้ใช้">
               <input type="text" value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="somchai_01"
                 required minLength={3} maxLength={32} autoComplete="username" style={inputStyle} />
             </Field>
             <Field label="อีเมล">
@@ -253,7 +252,7 @@ export default function LoginPage() {
               background: 'var(--bg2)', borderRadius: 6,
               padding: '5px 8px', border: '1px solid var(--border)',
             }}>
-              🔒 บัญชีที่สมัครใหม่จะได้รับสิทธิ์ <strong>User</strong> โดยอัตโนมัติ
+              บัญชีที่สมัครใหม่จะได้รับสิทธิ์ <strong>User</strong> โดยอัตโนมัติ
             </div>
 
             {error && <ErrorBox msg={error} />}

@@ -8,6 +8,7 @@ import DashboardPage  from './pages/DashboardPage'
 import HistoryPage    from './pages/HistoryPage'
 import ManualInputPage from './pages/ManualInputPage'
 import PHDiagramPage  from './pages/PHDiagramPage'
+import CalculatorPage from './pages/CalculatorPage'
 
 export default function App() {
   return (
@@ -31,7 +32,7 @@ export default function App() {
             <Route path="/ph-diagram" element={
               <ProtectedRoute><PHDiagramPage /></ProtectedRoute>
             } />
-
+          <Route path="/calculator" element={<ProtectedRoute><CalculatorPage /></ProtectedRoute>} />
             {/* Default → dashboard */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

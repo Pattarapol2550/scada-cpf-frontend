@@ -334,7 +334,7 @@ export default function DashboardPage() {
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>
-            สวัสดี, {user.username} 👋
+            สวัสดี, {user.username} 
           </span>
           <span style={{
             fontSize: 10, fontWeight: 700,
@@ -344,7 +344,7 @@ export default function DashboardPage() {
             border: `1px solid ${user.role === 'admin' ? 'var(--blue)' : 'var(--border)'}`,
             textTransform: 'uppercase', letterSpacing: '0.06em',
           }}>
-            {user.role === 'admin' ? '⚡ Admin' : 'User'}
+            {user.role === 'admin' ? 'Admin' : 'User'}
           </span>
         </div>
       )}
