@@ -177,7 +177,7 @@ export default function LoginPage() {
           <button type="button" style={tabStyle(mode === 'login')}
             onClick={() => switchMode('login')}>เข้าสู่ระบบ</button>
           <button type="button" style={tabStyle(mode === 'register')}
-            onClick={() => switchMode('register')}>สมัครสมาชิก</button>
+            onClick={() => switchMode('register')}>ลงทะเบียน</button>
         </div>
 
         {/* Notice (success) */}
@@ -252,7 +252,7 @@ export default function LoginPage() {
               background: 'var(--bg2)', borderRadius: 6,
               padding: '5px 8px', border: '1px solid var(--border)',
             }}>
-              บัญชีที่สมัครใหม่จะได้รับสิทธิ์ <strong>User</strong> โดยอัตโนมัติ
+              บัญชีที่ลงทะเบียนใหม่จะได้รับสิทธิ์ <strong>User</strong> โดยอัตโนมัติ
             </div>
 
             {error && <ErrorBox msg={error} />}
