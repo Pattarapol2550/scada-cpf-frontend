@@ -167,8 +167,8 @@ export default function DashboardPage() {
   const [start, setStart]   = useState('')
   const [end, setEnd]       = useState('')
   const [connStatus, setConnStatus] = useState('connecting')
-  const [liveMode, setLiveMode]     = useState(false)
-  const [pollInterval, setPollInterval] = useState(null)  // ms | null
+  const [liveMode, setLiveMode]     = useState(true)
+  const [pollInterval, setPollInterval] = useState(5_000)  // ms | null
   const [selectedDiag, setSelectedDiag] = useState(null)
   const [selectedTs,   setSelectedTs]   = useState(null)
   const [phData, setPhData] = useState(null)
@@ -429,7 +429,7 @@ export default function DashboardPage() {
               if (!next) {
                 setPollInterval(null)
               } else {
-                const defaultPoll = 10_000
+                const defaultPoll = 5_000
                 setPollInterval(defaultPoll)
                 // Kick off immediately with sliding 2h window
                 const now  = new Date()
