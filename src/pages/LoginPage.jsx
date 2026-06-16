@@ -72,31 +72,31 @@ export default function LoginPage() {
   const switchMode = (m) => { setMode(m); setError(''); setNotice('') }
 
   // ── Login ──────────────────────────────────────────
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    setError(''); setNotice('')
-    if (!identifier.trim() || !loginPw) {
-      setError('กรุณากรอกชื่อผู้ใช้/อีเมล และรหัสผ่าน')
-      return
-    }
-    setLoading(true)
-    try {
-      const res = await authLogin({ identifier: identifier.trim(), password: loginPw })
-      const { access_token, user } = res.data || {}
-      if (!access_token) throw new Error('no token')
-      login(access_token, user)   // บันทึก token + { username, role }
-      navigate('/dashboard')
-    } catch (err) {
-      if (err?.response?.status === 429)
-        setError('พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่')
-      else if (!err?.response)
-        setError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่ภายหลัง')
-      else
-        setError('ชื่อผู้ใช้/อีเมล หรือรหัสผ่านไม่ถูกต้อง')
-    } finally {
-      setLoading(false)
-    }
+ const handleLogin = async (e) => {
+  e.preventDefault()
+  setError(''); setNotice('')
+  if (!identifier.trim() || !loginPw) {
+    setError('กรุณากรอกชื่อผู้ใช้/อีเมล และรหัสผ่าน')
+    return
   }
+  setLoading(true)
+  try {
+    const res = await authLogin({ identifier: identifier.trim(), password: loginPw })
+    const { user } = res.data || {}
+    // ✅ ไม่ต้องรับ token แล้ว — อยู่ใน cookie อัตโนมัติ
+    login(user)
+    navigate('/dashboard')
+  } catch (err) {
+    if (err?.response?.status === 429)
+      setError('พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่')
+    else if (!err?.response)
+      setError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่ภายหลัง')
+    else
+      setError('ชื่อผู้ใช้/อีเมล หรือรหัสผ่านไม่ถูกต้อง')
+  } finally {
+    setLoading(false)
+  }
+}
 
   // ── Register ───────────────────────────────────────
   const handleRegister = async (e) => {
