@@ -1,9 +1,19 @@
-import { useState, useEffect, useRef } from 'react'
+/**
+ * components/layout/Navbar.jsx
+ *
+ * Changes vs original:
+ *  - logout now calls POST /api/auth/logout first (clears httpOnly cookie server-side)
+ *    then clears local state — prevents stale cookie session
+ *  - connStatus probe extracts to useConnectionStatus hook (unchanged logic)
+ */
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth }  from '../../context/AuthContext'
+import { authLogout } from '../../services/api'
 import api from '../../services/api'
 
+// ── Clock ─────────────────────────────────────────────────────────────────────
 function Clock() {
   const [time, setTime] = useState('')
   useEffect(() => {
@@ -17,25 +27,17 @@ function Clock() {
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [])
-  return <span className="font-mono text-[11px]" style={{ color: 'var(--text-3)' }}>{time}</span>
+  return <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-3)' }}>{time}</span>
 }
 
-const NAV_LINKS = [
-  { to: '/dashboard',   label: 'Dashboard'   },
-  { to: '/history',     label: 'History'     },
-  { to: '/input',       label: 'Input'       },
-  { to: '/ph-diagram',  label: 'P-H'         },
-  { to: '/calculator',  label: 'Calculator'  },  // ← เพิ่ม
-]
-
-// ── Connection probe: ping /api/metrics/COMP-01 ทุก 30s ──────────
+// ── Connection probe ──────────────────────────────────────────────────────────
 function useConnectionStatus() {
   const [status, setStatus] = useState('connecting')
   const timerRef = useRef(null)
 
   const probe = async () => {
     try {
-      await api.get('/api/metrics/COMP-01', { params: { limit: 1 }, timeout: 8000 })
+      await api.get('/api/metrics/COMP-01', { params: { limit: 1 }, timeout: 8_000 })
       setStatus('live')
     } catch {
       setStatus('error')
@@ -44,55 +46,50 @@ function useConnectionStatus() {
 
   useEffect(() => {
     probe()
-    timerRef.current = setInterval(probe, 30000)
+    timerRef.current = setInterval(probe, 30_000)
     return () => clearInterval(timerRef.current)
   }, [])
 
   return status
 }
 
+// ── Nav links ─────────────────────────────────────────────────────────────────
+const NAV_LINKS = [
+  { to: '/dashboard',  label: 'Dashboard'  },
+  { to: '/history',    label: 'History'    },
+  { to: '/input',      label: 'Input'      },
+  { to: '/ph-diagram', label: 'P-H'        },
+  { to: '/calculator', label: 'Calculator' },
+]
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function Navbar({ connStatus: connStatusProp }) {
   const { theme, toggle } = useTheme()
-  const { logout } = useAuth()
-  const location = useLocation()
-  const navigate = useNavigate()
+  const { logout }        = useAuth()
+  const location          = useLocation()
+  const navigate          = useNavigate()
 
-  const isDark = theme === 'dark'
-
-  // ถ้ามี prop ส่งมา (DashboardPage) ใช้ prop นั้น
-  // ถ้าไม่มี (หน้าอื่น) ใช้ probe ของตัวเอง
+  const isDark       = theme === 'dark'
   const probedStatus = useConnectionStatus()
-  const connStatus = connStatusProp ?? probedStatus
+  const connStatus   = connStatusProp ?? probedStatus
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await authLogout() } catch { /* ignore — cookie may already be gone */ }
     logout()
     navigate('/login')
   }
 
-  const connColor = {
-    live:       'var(--green)',
-    error:      'var(--red)',
-    connecting: 'var(--text-3)',
-  }[connStatus] || 'var(--text-3)'
-
-  const connLabel = {
-    live:       'LIVE',
-    error:      'ERROR',
-    connecting: 'Connecting…',
-  }[connStatus] || 'Connecting…'
+  const connColor = { live: 'var(--green)', error: 'var(--red)', connecting: 'var(--text-3)' }[connStatus] ?? 'var(--text-3)'
+  const connLabel = { live: 'LIVE',         error: 'ERROR',      connecting: 'Connecting…'  }[connStatus] ?? 'Connecting…'
 
   return (
     <nav style={{
       position: 'sticky', top: 0, zIndex: 100,
-      background: 'var(--bg1)',
-      borderBottom: '1px solid var(--border)',
-      height: 52,
-      display: 'flex', alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 20px', gap: 16,
+      background: 'var(--bg1)', borderBottom: '1px solid var(--border)',
+      height: 52, display: 'flex', alignItems: 'center',
+      justifyContent: 'space-between', padding: '0 20px', gap: 16,
       transition: 'background 0.2s',
     }}>
-
       {/* Brand */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <div style={{
@@ -108,22 +105,20 @@ export default function Navbar({ connStatus: connStatusProp }) {
       </div>
 
       {/* Nav links */}
-      <div style={{ display: 'flex', gap: 2 }}>
+      <nav aria-label="Main navigation" style={{ display: 'flex', gap: 2 }}>
         {NAV_LINKS.map(({ to, label }) => {
           const active = location.pathname === to
           return (
             <Link key={to} to={to} style={{
-              padding: '5px 12px',
-              borderRadius: 6,
-              fontSize: 12, fontWeight: 500,
-              textDecoration: 'none',
-              color: active ? 'var(--text-1)' : 'var(--text-2)',
-              background: active ? 'var(--bg3)' : 'transparent',
+              padding: '5px 12px', borderRadius: 6,
+              fontSize: 12, fontWeight: 500, textDecoration: 'none',
+              color:      active ? 'var(--text-1)' : 'var(--text-2)',
+              background: active ? 'var(--bg3)'    : 'transparent',
               transition: 'background 0.15s, color 0.15s',
             }}>{label}</Link>
           )
         })}
-      </div>
+      </nav>
 
       {/* Right side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
@@ -134,42 +129,33 @@ export default function Navbar({ connStatus: connStatusProp }) {
           display: 'flex', alignItems: 'center', gap: 5,
           fontSize: 11, fontWeight: 600,
           padding: '3px 10px', borderRadius: 20,
-          background: 'var(--bg3)',
-          border: '1px solid var(--border)',
+          background: 'var(--bg3)', border: '1px solid var(--border)',
           color: connColor,
         }}>
-          <div style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: connColor,
-          }} />
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: connColor }} />
           {connLabel}
         </div>
 
-        {/* Theme toggle — pill style (Option B) */}
+        {/* Theme toggle */}
         <div
+          role="button" aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
           style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
           onClick={toggle}
-          role="button"
-          aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+          onKeyDown={e => e.key === 'Enter' && toggle()}
+          tabIndex={0}
         >
           <span style={{ fontSize: 11, color: 'var(--text-2)', userSelect: 'none' }}>
             {isDark ? 'Dark' : 'Light'}
           </span>
-          {/* Track */}
           <div style={{
-            position: 'relative', width: 36, height: 20,
-            borderRadius: 10,
+            position: 'relative', width: 36, height: 20, borderRadius: 10,
             background: isDark ? 'var(--bg3)' : 'var(--cyan)',
-            border: '1px solid var(--border)',
-            transition: 'background 0.2s',
+            border: '1px solid var(--border)', transition: 'background 0.2s',
           }}>
-            {/* Thumb */}
             <div style={{
-              position: 'absolute',
-              top: 2,
+              position: 'absolute', top: 2,
               left: isDark ? 2 : 16,
-              width: 14, height: 14,
-              borderRadius: '50%',
+              width: 14, height: 14, borderRadius: '50%',
               background: isDark ? 'var(--text-2)' : '#fff',
               transition: 'left 0.2s',
             }} />

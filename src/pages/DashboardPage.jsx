@@ -6,6 +6,8 @@ import DiagnosisReport from '../components/dashboard/DiagnosisReport'
 import { useMetrics } from '../hooks/useMetrics'
 import { useAuth } from '../context/AuthContext'
 import { getPHDiagram } from '../services/api'
+import { COMPRESSORS, toLocalDT, formatThaiTime, num, lastNHours } from '../utils/format'
+import { CHART_DEFAULTS, mkDs } from '../utils/chartConfig'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, LogarithmicScale,
@@ -17,63 +19,7 @@ ChartJS.register(
   CategoryScale, LinearScale, LogarithmicScale,
   PointElement, LineElement, Tooltip, Legend, Filler
 )
- 
-// ── Helpers ─────────────────────────────────────────────
-const COMPRESSORS = ['COMP-01','COMP-02','COMP-03','COMP-04','COMP-05','COMP-06','COMP-07']
- 
-function toLocalDT(date) {
-  const p = n => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`
-}
- 
-function formatThaiTime(str) {
-  if (!str) return '--'
-  return new Date(str).toLocaleString('th-TH', {
-    timeZone: 'Asia/Bangkok', hour12: false,
-    day: '2-digit', month: 'short',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  })
-}
- 
-function num(v) { return isNaN(Number(v)) ? null : Number(v) }
- 
-const CHART_DEFAULTS = {
-  responsive: true,
-  maintainAspectRatio: false,
-  animation: false,
-  elements: { point: { radius: 3, hoverRadius: 7 } },
-  plugins: {
-    legend: { display: false },
-    tooltip: {
-      mode: 'point', intersect: true,
-      backgroundColor: '#1c2333',
-      borderColor: '#30363d', borderWidth: 1,
-      titleColor: '#8b949e', bodyColor: '#e6edf3', padding: 10,
-    },
-  },
-  scales: {
-    x: { ticks: { maxTicksLimit: 8, maxRotation: 0, color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' } },
-    y: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,0.5)' } },
-  },
-}
- 
-function mkDs(label, data, color) {
-  return {
-    label, data,
-    borderColor: color,
-    backgroundColor: 'transparent',
-    borderWidth: 1.5, tension: 0, spanGaps: true, fill: false,
-    pointRadius: 3,
-    pointBackgroundColor: color,
-    pointBorderColor: color,
-    pointBorderWidth: 1,
-    pointHoverRadius: 7,
-    pointHoverBackgroundColor: color,
-    pointHoverBorderColor: '#161b22',
-    pointHoverBorderWidth: 2,
-  }
-}
- 
+  
 // ── FilterBar ────────────────────────────────────────────
 function FilterBar({ start, setStart, end, setEnd, onSearch }) {
   const [activeShortcut, setActiveShortcut] = useState(null)
