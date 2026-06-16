@@ -200,7 +200,7 @@ export default function DashboardPage() {
     if (!rec) return
     setSelectedDiag(rec.diagnosis)
     setSelectedTs(rec.timestamp)
-    getPHDiagram(comp, rec._id).then(r => setPhData(r.data)).catch(() => {})
+    getPHDiagram(comp, { record_id: rec._id }).then(r => setPhData(r.data)).catch(() => {})
     // wait for React re-render before scrolling
     setTimeout(() => {
       if (reportRef.current) {

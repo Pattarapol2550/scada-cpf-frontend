@@ -362,7 +362,7 @@ export default function PHDiagramPage() {
             </div>
           )}
 
-          {/* Timestamp of loaded data
+          
           {data && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{
@@ -372,7 +372,7 @@ export default function PHDiagramPage() {
                 border: '1px solid', borderColor: useTimestamp ? 'var(--blue, #388bfd)' : 'var(--border)',
                 borderRadius: 6, padding: '2px 7px',
               }}>
-                {useTimestamp ? '📌 ข้อมูล ณ' : '🕐 ล่าสุด'}
+                {useTimestamp ? '📌 ข้อมูล ณ' : 'ข้อมูลล่าสุด'}
               </span>
               <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-1)', fontWeight: 600 }}>
                 {data.timestamp
@@ -385,7 +385,7 @@ export default function PHDiagramPage() {
                   : '--'}
               </span>
             </div>
-          )} */}
+          )}
 
           {/* Export PDF */}
           <button
