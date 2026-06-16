@@ -4,14 +4,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
-    historyApiFallback: true,   
     proxy: {
       '/api': {
-        target: 'https://cpfbackend2-0.onrender.com',
+        target: process.env.VITE_LOCAL_API || 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
-      },
-    },
-  },
+      }
+    }
+  }
 })
