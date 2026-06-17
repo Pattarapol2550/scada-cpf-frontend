@@ -42,7 +42,7 @@ export default function GoogleCallbackPage() {
 
     authGoogleCallback({
       code,
-      redirect_uri: window.location.origin + '/auth/callback',
+      redirect_uri: import.meta.env.VITE_REDIRECT_URI || window.location.origin + '/auth/callback',
     })
       .then(res => {
         const { user } = res.data || {}

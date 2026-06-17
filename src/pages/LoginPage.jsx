@@ -42,7 +42,7 @@ function ErrorBox({ msg }) {
 // ── Google redirect ───────────────────────────────────────────────────────────
 function handleGoogleRedirect() {
   const clientId    = import.meta.env.VITE_GOOGLE_CLIENT_ID
-  const redirectUri = window.location.origin + '/auth/callback'
+const redirectUri = import.meta.env.VITE_REDIRECT_URI || window.location.origin + '/auth/callback'
 
   const params = new URLSearchParams({
     client_id:     clientId,
