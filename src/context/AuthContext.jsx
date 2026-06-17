@@ -1,9 +1,10 @@
 /**
  * context/AuthContext.jsx
  *
- * Security improvement: localStorage only caches UI display info (username, role).
- * The REAL auth state lives in the httpOnly cookie validated by the server.
- * On mount we call /api/auth/me to verify the session is still valid.
+ * FIX: ข้าม /me check เมื่ออยู่ที่ /auth/callback
+ * เพราะ cookie ยังไม่ถูก set ตอนที่ callback page กำลังประมวลผล
+ * ถ้าไม่ข้าม → /me ได้ 401 → setVerified(true) โดยที่ user=null
+ * → ProtectedRoute redirect กลับ /login ตัด flow Google ทิ้ง
  */
 import { createContext, useContext, useEffect, useState } from 'react'
 import { authMe } from '../services/api'
@@ -12,7 +13,7 @@ const AuthContext = createContext()
 
 function loadCachedUser() {
   try {
-    const raw = sessionStorage.getItem('scada-user')  // sessionStorage: cleared on tab close
+    const raw = sessionStorage.getItem('scada-user')
     if (!raw) return null
     const u = JSON.parse(raw)
     return u?.username ? { username: u.username, role: u.role || 'user' } : null
@@ -22,11 +23,17 @@ function loadCachedUser() {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(loadCachedUser)
-  const [verified, setVerified] = useState(false)  // true once /me check completes
+  const [user,     setUser]     = useState(loadCachedUser)
+  const [verified, setVerified] = useState(false)
 
-  // Verify cookie with backend on every mount / page refresh
   useEffect(() => {
+    // FIX: ถ้าอยู่ที่ /auth/callback ให้ข้าม /me check
+    // GoogleCallbackPage จะเรียก login() เองหลัง backend ตอบกลับ
+    if (window.location.pathname === '/auth/callback') {
+      setVerified(true)
+      return
+    }
+
     authMe()
       .then(res => {
         const { username, role } = res.data
@@ -35,7 +42,6 @@ export function AuthProvider({ children }) {
         setUser(safe)
       })
       .catch(() => {
-        // Cookie invalid / expired — clear cached state
         sessionStorage.removeItem('scada-user')
         setUser(null)
       })
@@ -58,9 +64,9 @@ export function AuthProvider({ children }) {
       user,
       login,
       logout,
-      isAuth:   !!user,
-      isAdmin:  user?.role === 'admin',
-      verified,         // ProtectedRoute waits for this before redirecting
+      isAuth:  !!user,
+      isAdmin: user?.role === 'admin',
+      verified,
     }}>
       {children}
     </AuthContext.Provider>

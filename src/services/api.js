@@ -1,10 +1,6 @@
 /**
- * services/api.js — Axios instance + interceptors
- *
- * Security notes:
- *  - withCredentials: true  → sends httpOnly cookie on every request
- *  - 401 interceptor        → auto-redirect to /login (skips auth routes to avoid loops)
- *  - No token stored in JS  → XSS cannot steal credentials
+ * src/services/api.js
+ * เพิ่ม authGoogleCallback สำหรับส่ง authorization code ไป backend
  */
 import axios from 'axios'
 
@@ -18,12 +14,11 @@ const api = axios.create({
   withCredentials: true,
 })
 
-// ── 401 → /login ─────────────────────────────────────────────────────────────
 api.interceptors.response.use(
   res => res,
   err => {
-    const status  = err?.response?.status
-    const isAuth  = err?.config?.url?.includes('/api/auth/')
+    const status = err?.response?.status
+    const isAuth = err?.config?.url?.includes('/api/auth/')
     if (status === 401 && !isAuth && window.location.pathname !== '/login') {
       window.location.assign('/login')
     }
@@ -32,10 +27,12 @@ api.interceptors.response.use(
 )
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-export const authRegister = (payload) => api.post('/api/auth/register', payload)
-export const authLogin    = (payload) => api.post('/api/auth/login',    payload)
-export const authLogout   = ()        => api.post('/api/auth/logout')
-export const authMe       = ()        => api.get('/api/auth/me')
+export const authRegister       = (payload) => api.post('/api/auth/register', payload)
+export const authLogin          = (payload) => api.post('/api/auth/login',    payload)
+export const authLogout         = ()        => api.post('/api/auth/logout')
+export const authMe             = ()        => api.get('/api/auth/me')
+// ส่ง { code, redirect_uri } → backend แลก token กับ Google แล้ว set cookie
+export const authGoogleCallback = (payload) => api.post('/api/auth/google/callback', payload)
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
 export const getMetrics  = (compressorId, params = {}) =>
