@@ -1,13 +1,11 @@
 /**
  * src/components/layout/Navbar.jsx
- *
- * เปลี่ยน:
- *  - ลบ Theme toggle ออก (ย้ายไปหน้า Settings แล้ว)
- *  - เพิ่มปุ่ม ⚙️ Settings icon ฝั่งขวา
+ * - ลบ theme toggle (ย้ายไปหน้า Settings แล้ว)
+ * - เปลี่ยน settings เป็นรูปภาพ /settings-icon.png
  */
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth }   from '../../context/AuthContext'
+import { useAuth }    from '../../context/AuthContext'
 import { authLogout } from '../../services/api'
 import api from '../../services/api'
 
@@ -57,11 +55,11 @@ const NAV_LINKS = [
 ]
 
 export default function Navbar({ connStatus: connStatusProp }) {
-  const { logout }      = useAuth()
-  const location        = useLocation()
-  const navigate        = useNavigate()
-  const probedStatus    = useConnectionStatus()
-  const connStatus      = connStatusProp ?? probedStatus
+  const { logout, user }  = useAuth()
+  const location          = useLocation()
+  const navigate          = useNavigate()
+  const probedStatus      = useConnectionStatus()
+  const connStatus        = connStatusProp ?? probedStatus
 
   const handleLogout = async () => {
     try { await authLogout() } catch { /* ignore */ }
@@ -71,6 +69,7 @@ export default function Navbar({ connStatus: connStatusProp }) {
 
   const connColor = { live: 'var(--green)', error: 'var(--red)', connecting: 'var(--text-3)' }[connStatus] ?? 'var(--text-3)'
   const connLabel = { live: 'LIVE',         error: 'ERROR',      connecting: 'Connecting…'  }[connStatus] ?? '…'
+  const isSettings = location.pathname === '/settings'
 
   return (
     <nav style={{
@@ -88,12 +87,8 @@ export default function Navbar({ connStatus: connStatusProp }) {
           fontSize: 11, fontWeight: 700, color: '#0d1117',
         }}>NH₃</div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>
-            Refrigeration SCADA
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'JetBrains Mono, monospace' }}>
-            Ammonia Chiller Monitor
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>Refrigeration SCADA</div>
+          <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'JetBrains Mono, monospace' }}>Ammonia Chiller Monitor</div>
         </div>
       </div>
 
@@ -113,7 +108,7 @@ export default function Navbar({ connStatus: connStatusProp }) {
         })}
       </nav>
 
-      {/* Right side */}
+      {/* Right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <Clock />
 
@@ -129,29 +124,28 @@ export default function Navbar({ connStatus: connStatusProp }) {
           {connLabel}
         </div>
 
-        {/* Settings icon */}
+        {/* Settings icon — รูปภาพแทน emoji */}
         <Link
           to="/settings"
           aria-label="Settings"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 32, height: 32, borderRadius: 8,
-            background: location.pathname === '/settings' ? 'var(--bg3)' : 'transparent',
-            border: '1px solid',
-            borderColor: location.pathname === '/settings' ? 'var(--border)' : 'transparent',
-            color: 'var(--text-2)', textDecoration: 'none', fontSize: 16,
+            background:   isSettings ? 'var(--bg3)'    : 'transparent',
+            border:       `1px solid ${isSettings ? 'var(--border)' : 'transparent'}`,
+            textDecoration: 'none',
             transition: 'background 0.15s, border-color 0.15s',
           }}
         >
-          ⚙️
+          <img
+            src="/settings-icon.png"
+            alt="Settings"
+            style={{ width: 20, height: 20, objectFit: 'contain' }}
+          />
         </Link>
 
         {/* Logout */}
-        <button
-          className="btn-ghost"
-          style={{ fontSize: 11, padding: '4px 10px' }}
-          onClick={handleLogout}
-        >
+        <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={handleLogout}>
           Logout
         </button>
       </div>

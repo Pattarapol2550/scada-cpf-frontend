@@ -1,11 +1,9 @@
 /**
  * src/pages/SettingsPage.jsx
- *
- * ทุกคน  → โปรไฟล์, เปลี่ยนรหัสผ่าน (local only), ธีม
- * Admin  → จัดการ Users (ดู, toggle active, ลบ), สร้าง User ใหม่
- * ไม่มีการเปลี่ยน role ในหน้าเว็บ — ต้องทำผ่าน DB เท่านั้น
+ * Layout แบบ sidebar + content panel
  */
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth }  from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import {
@@ -14,11 +12,7 @@ import {
   adminToggleActive, adminDeleteUser,
 } from '../services/api'
 
-// ── Shared styles ─────────────────────────────────────────────────────────────
-const card = {
-  background: 'var(--bg1)', border: '1px solid var(--border)',
-  borderRadius: 12, padding: 24, marginBottom: 16,
-}
+// ── Shared ────────────────────────────────────────────────────────────────────
 const inputStyle = {
   width: '100%', padding: '8px 12px', fontSize: 13,
   background: 'var(--bg2)', border: '1px solid var(--border)',
@@ -32,30 +26,30 @@ const labelStyle = {
 
 function Field({ label, children }) {
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 14 }}>
       <label style={labelStyle}>{label}</label>
       {children}
     </div>
   )
 }
 
-function SectionTitle({ icon, title }) {
+function SectionHeader({ title, desc }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-      <span style={{ fontSize: 16 }}>{icon}</span>
-      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)' }}>{title}</span>
+    <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>{title}</div>
+      {desc && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{desc}</div>}
     </div>
   )
 }
 
 function Toast({ msg, type }) {
   if (!msg) return null
-  const color = type === 'error' ? 'var(--red)' : 'var(--green)'
-  const bg    = type === 'error' ? 'var(--red-dim)' : 'rgba(63,185,80,0.12)'
   return (
     <div style={{
-      fontSize: 12, color, background: bg,
-      padding: '6px 12px', borderRadius: 6, marginBottom: 12,
+      fontSize: 12,
+      color:      type === 'error' ? 'var(--red)'   : 'var(--green)',
+      background: type === 'error' ? 'var(--red-dim)' : 'rgba(63,185,80,0.12)',
+      padding: '7px 12px', borderRadius: 7, marginBottom: 14,
     }}>{msg}</div>
   )
 }
@@ -71,18 +65,40 @@ function RoleBadge({ role }) {
   )
 }
 
+// ── Sidebar nav item ──────────────────────────────────────────────────────────
+function NavItem({ id, icon, label, active, onClick }) {
+  return (
+    <button
+      onClick={() => onClick(id)}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+        padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+        background: active ? 'var(--bg3)' : 'transparent',
+        color:      active ? 'var(--text-1)' : 'var(--text-2)',
+        fontSize: 13, fontWeight: active ? 500 : 400,
+        textAlign: 'left', transition: 'background 0.15s, color 0.15s',
+      }}
+    >
+      <span style={{ fontSize: 16 }}>{icon}</span>
+      {label}
+    </button>
+  )
+}
+
 // ── Section: Profile ──────────────────────────────────────────────────────────
 function ProfileSection({ profile, onRefresh }) {
-  const [phone,   setPhone]   = useState('')
-  const [toast,   setToast]   = useState({ msg: '', type: '' })
-  const [loading, setLoading] = useState(false)
+  const { login }           = useAuth()
+  const navigate            = useNavigate()
   const [username, setUsername] = useState('')
-  const{login} = useAuth()
+  const [phone,    setPhone]    = useState('')
+  const [toast,    setToast]    = useState({ msg: '', type: '' })
+  const [loading,  setLoading]  = useState(false)
+  const [saved,    setSaved]    = useState(false)
 
   useEffect(() => {
     if (profile) {
+      setUsername(profile.username || '')
       setPhone(profile.phone || '')
-      setUsername(profile.username || '')   // ← เพิ่ม
     }
   }, [profile])
 
@@ -92,79 +108,115 @@ function ProfileSection({ profile, onRefresh }) {
   }
 
   const handleSave = async (e) => {
-  e.preventDefault()
-  setLoading(true)
-  try {
-    const res = await updateProfile({
-      phone:    phone.replace(/[-\s]/g, '') || null,
-      username: username !== profile.username ? username : null,
-    })
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const res = await updateProfile({
+        phone:    phone.replace(/[-\s]/g, '') || null,
+        username: username !== profile.username ? username : null,
+      })
+      if (res.data?.username) {
+        login({ username: res.data.username, role: profile.role })
+      }
+      showToast('อัพเดทโปรไฟล์สำเร็จ')
+      setSaved(true)
+      onRefresh()
+    } catch (err) {
+      showToast(err?.response?.data?.detail || 'อัพเดทไม่สำเร็จ', 'error')
+    } finally { setLoading(false) }
+  }
 
-    // อัพเดท sessionStorage + context ทันที ไม่ต้อง login ใหม่
-    if (res.data?.username) {
-      login({ username: res.data.username, role: profile.role })
-    }
+  if (!profile) return <div style={{ color: 'var(--text-3)', fontSize: 13 }}>กำลังโหลด…</div>
 
-    showToast('อัพเดทโปรไฟล์สำเร็จ')
-    onRefresh()
-  } catch (err) {
-    showToast(err?.response?.data?.detail || 'อัพเดทไม่สำเร็จ', 'error')
-  } finally { setLoading(false) }
-}
-
-  if (!profile) return null
+  const initials = (profile.username || '??').slice(0, 2).toUpperCase()
 
   return (
-    <div style={card}>
-      <SectionTitle icon="👤" title="โปรไฟล์ของฉัน" />
-      <Toast msg={toast.msg} type={toast.type} />
+    <div>
+      <SectionHeader title="โปรไฟล์" desc="แก้ไขชื่อและข้อมูลส่วนตัว" />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+      {/* Avatar card */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: 16, background: 'var(--bg2)', borderRadius: 10,
+        border: '1px solid var(--border)', marginBottom: 20,
+      }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
+          background: 'linear-gradient(135deg, var(--cyan), var(--blue))',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 16, fontWeight: 700, color: '#0d1117',
+        }}>{initials}</div>
         <div>
-          <div style={labelStyle}>ชื่อผู้ใช้</div>
-          <input
-            type="text"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            minLength={3} maxLength={32}
-            style={inputStyle}
-          />
-        </div>
-        <div>
-          <div style={labelStyle}>อีเมล</div>
-          <div style={{ ...inputStyle, color: 'var(--text-3)', cursor: 'not-allowed' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>
+            {profile.username}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
             {profile.email}
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center' }}>
+            <RoleBadge role={profile.role} />
+            <span style={{ fontSize: 10, color: 'var(--text-3)' }}>
+              {profile.auth_provider === 'google' ? '· Google Account' : '· Local Account'}
+            </span>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <span style={labelStyle}>Role:</span>
-        <RoleBadge role={profile.role} />
-        <span style={{ fontSize: 10, color: 'var(--text-3)' }}>
-          {profile.auth_provider === 'google' ? '· Google Account' : '· Local Account'}
-        </span>
-      </div>
+      <Toast msg={toast.msg} type={toast.type} />
 
-      <form onSubmit={handleSave}>
+      <form onSubmit={handleSave} style={{ maxWidth: 480 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="ชื่อผู้ใช้">
+            <input
+              type="text" value={username}
+              onChange={e => { setUsername(e.target.value); setSaved(false) }}
+              minLength={3} maxLength={32} style={inputStyle}
+            />
+          </Field>
+          <Field label="อีเมล">
+            <div style={{ ...inputStyle, color: 'var(--text-3)', cursor: 'not-allowed' }}>
+              {profile.email}
+            </div>
+          </Field>
+        </div>
         <Field label="เบอร์โทรศัพท์">
           <input
             type="tel" value={phone}
-            onChange={e => setPhone(e.target.value)}
+            onChange={e => { setPhone(e.target.value); setSaved(false) }}
             placeholder="0812345678" maxLength={12}
-            inputMode="numeric" style={inputStyle}
+            inputMode="numeric" style={{ ...inputStyle, maxWidth: 200 }}
           />
         </Field>
-        <button type="submit" disabled={loading} className="btn-primary"
-          style={{ padding: '8px 20px', fontSize: 12, opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'กำลังบันทึก…' : 'บันทึก'}
-        </button>
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 4 }}>
+          <button type="submit" disabled={loading} className="btn-primary"
+            style={{ padding: '8px 22px', fontSize: 12, opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'กำลังบันทึก…' : 'บันทึก'}
+          </button>
+
+          {/* ปุ่มกลับ Dashboard — โชว์หลังบันทึกสำเร็จ */}
+          {saved && (
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '8px 16px', fontSize: 12, borderRadius: 8,
+                background: 'var(--bg2)', border: '1px solid var(--border)',
+                color: 'var(--text-2)', cursor: 'pointer',
+                transition: 'border-color 0.15s',
+              }}
+            >
+              ← กลับ Dashboard
+            </button>
+          )}
+        </div>
       </form>
     </div>
   )
 }
 
-// ── Section: Change Password ──────────────────────────────────────────────────
+// ── Section: Password ─────────────────────────────────────────────────────────
 function PasswordSection() {
   const [cur,     setCur]     = useState('')
   const [nw,      setNw]      = useState('')
@@ -192,10 +244,10 @@ function PasswordSection() {
   }
 
   return (
-    <div style={card}>
-      <SectionTitle icon="🔑" title="เปลี่ยนรหัสผ่าน" />
+    <div>
+      <SectionHeader title="รหัสผ่าน" desc="เปลี่ยนรหัสผ่านสำหรับบัญชี local (ไม่ใช้กับบัญชี Google)" />
       <Toast msg={toast.msg} type={toast.type} />
-      <form onSubmit={handleSubmit} style={{ maxWidth: 360 }}>
+      <form onSubmit={handleSubmit} style={{ maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 4 }}>
         <Field label="รหัสผ่านปัจจุบัน">
           <input type="password" value={cur} onChange={e => setCur(e.target.value)}
             required placeholder="••••••••" style={inputStyle} />
@@ -208,10 +260,12 @@ function PasswordSection() {
           <input type="password" value={cnf} onChange={e => setCnf(e.target.value)}
             required placeholder="••••••••" style={inputStyle} />
         </Field>
-        <button type="submit" disabled={loading} className="btn-primary"
-          style={{ padding: '8px 20px', fontSize: 12, opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'กำลังเปลี่ยน…' : 'เปลี่ยนรหัสผ่าน'}
-        </button>
+        <div style={{ marginTop: 4 }}>
+          <button type="submit" disabled={loading} className="btn-primary"
+            style={{ padding: '8px 22px', fontSize: 12, opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'กำลังเปลี่ยน…' : 'เปลี่ยนรหัสผ่าน'}
+          </button>
+        </div>
       </form>
     </div>
   )
@@ -222,24 +276,30 @@ function ThemeSection() {
   const { theme, toggle } = useTheme()
 
   return (
-    <div style={card}>
-      <SectionTitle icon="🎨" title="ธีม" />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {['dark', 'light'].map(t => (
+    <div>
+      <SectionHeader title="ธีม" desc="เลือกธีมสำหรับการแสดงผล" />
+      <div style={{ display: 'flex', gap: 12 }}>
+        {[
+          { key: 'dark',  label: 'Dark',  icon: '🌙' },
+          { key: 'light', label: 'Light', icon: '☀️' },
+        ].map(t => (
           <button
-            key={t}
+            key={t.key}
             type="button"
-            onClick={() => theme !== t && toggle()}
+            onClick={() => theme !== t.key && toggle()}
             style={{
-              padding: '10px 24px', borderRadius: 8, fontSize: 13,
-              fontWeight: 500, cursor: 'pointer', border: '1px solid',
-              borderColor: theme === t ? 'var(--blue)' : 'var(--border)',
-              background:  theme === t ? 'rgba(56,139,253,0.1)' : 'var(--bg2)',
-              color:       theme === t ? 'var(--blue)' : 'var(--text-2)',
-              transition: 'all 0.15s',
+              width: 140, padding: '16px 0', textAlign: 'center',
+              borderRadius: 10, border: `${theme === t.key ? '2px' : '1px'} solid`,
+              borderColor:  theme === t.key ? 'var(--blue)' : 'var(--border)',
+              background:   theme === t.key ? 'rgba(56,139,253,0.08)' : 'var(--bg2)',
+              cursor: 'pointer', transition: 'all 0.15s',
             }}
           >
-            {t === 'dark' ? '🌙 Dark' : '☀️ Light'}
+            <div style={{ fontSize: 24, marginBottom: 6 }}>{t.icon}</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>{t.label}</div>
+            {theme === t.key && (
+              <div style={{ fontSize: 10, color: 'var(--blue)', marginTop: 4 }}>ใช้งานอยู่</div>
+            )}
           </button>
         ))}
       </div>
@@ -254,12 +314,6 @@ function AdminUsersSection() {
   const [toast,   setToast]   = useState({ msg: '', type: '' })
   const [confirm, setConfirm] = useState(null)
 
-  const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({
-    username: '', email: '', phone: '', password: '', role: 'user',
-  })
-  const [creating, setCreating] = useState(false)
-
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast({ msg: '', type: '' }), 3000)
@@ -269,9 +323,8 @@ function AdminUsersSection() {
     try {
       const res = await adminGetUsers()
       setUsers(res.data)
-    } catch {
-      showToast('โหลด users ไม่สำเร็จ', 'error')
-    } finally { setLoading(false) }
+    } catch { showToast('โหลด users ไม่สำเร็จ', 'error') }
+    finally { setLoading(false) }
   }
 
   useEffect(() => { loadUsers() }, [])
@@ -296,100 +349,22 @@ function AdminUsersSection() {
     }
   }
 
-  const handleCreate = async (e) => {
-    e.preventDefault()
-    setCreating(true)
-    try {
-      await adminCreateUser(form)
-      showToast(`สร้าง '${form.username}' สำเร็จ`)
-      setShowCreate(false)
-      setForm({ username: '', email: '', phone: '', password: '', role: 'user' })
-      loadUsers()
-    } catch (err) {
-      showToast(err?.response?.data?.detail || 'สร้างไม่สำเร็จ', 'error')
-    } finally { setCreating(false) }
-  }
-
-  const TABLE_HEADERS = ['ชื่อผู้ใช้', 'อีเมล', 'Role', 'Provider', 'สถานะ', 'จัดการ']
-
   return (
-    <div style={card}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <SectionTitle icon="👥" title="จัดการผู้ใช้" />
-        <button
-          type="button"
-          onClick={() => setShowCreate(s => !s)}
-          className="btn-primary"
-          style={{ padding: '6px 16px', fontSize: 12 }}
-        >
-          {showCreate ? 'ยกเลิก' : '+ สร้าง User ใหม่'}
-        </button>
-      </div>
-
+    <div>
+      <SectionHeader title="จัดการผู้ใช้" desc="ดูและจัดการ account ทั้งหมดในระบบ" />
       <Toast msg={toast.msg} type={toast.type} />
 
-      {/* Create form */}
-      {showCreate && (
-        <form onSubmit={handleCreate} style={{
-          background: 'var(--bg2)', border: '1px solid var(--border)',
-          borderRadius: 10, padding: 16, marginBottom: 16,
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 12 }}>
-            สร้าง Account สำหรับ Contractor / Vendor
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <Field label="ชื่อผู้ใช้">
-              <input value={form.username}
-                onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-                required minLength={3} maxLength={32} style={inputStyle} />
-            </Field>
-            <Field label="อีเมล">
-              <input type="email" value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                required style={inputStyle} />
-            </Field>
-            <Field label="เบอร์โทร">
-              <input type="tel" value={form.phone}
-                onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                required placeholder="0812345678" style={inputStyle} />
-            </Field>
-            <Field label="รหัสผ่าน">
-              <input type="password" value={form.password}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                required minLength={8}
-                placeholder="≥8 ตัว พิมพ์ใหญ่+เล็ก+ตัวเลข"
-                style={inputStyle} />
-            </Field>
-          </div>
-          <Field label="Role">
-            <select value={form.role}
-              onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-              style={{ ...inputStyle, width: 'auto' }}>
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
-          </Field>
-          <button type="submit" disabled={creating} className="btn-primary"
-            style={{ padding: '7px 20px', fontSize: 12, opacity: creating ? 0.7 : 1 }}>
-            {creating ? 'กำลังสร้าง…' : 'สร้าง Account'}
-          </button>
-        </form>
-      )}
-
-      {/* Users table */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-3)', fontSize: 13 }}>
-          กำลังโหลด…
-        </div>
+        <div style={{ color: 'var(--text-3)', fontSize: 13 }}>กำลังโหลด…</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {TABLE_HEADERS.map(h => (
+                {['ชื่อผู้ใช้', 'อีเมล', 'Role', 'Provider', 'สถานะ', ''].map(h => (
                   <th key={h} style={{
                     padding: '8px 12px', textAlign: 'left',
-                    color: 'var(--text-3)', fontWeight: 500,
+                    color: 'var(--text-3)', fontWeight: 500, fontSize: 11,
                   }}>{h}</th>
                 ))}
               </tr>
@@ -400,48 +375,34 @@ function AdminUsersSection() {
                   borderBottom: '1px solid var(--border)',
                   opacity: u.is_active ? 1 : 0.5,
                 }}>
-                  <td style={{ padding: '10px 12px', color: 'var(--text-1)', fontWeight: 500 }}>
+                  <td style={{ padding: '10px 12px', fontWeight: 500, color: 'var(--text-1)' }}>
                     {u.username}
                   </td>
-                  <td style={{ padding: '10px 12px', color: 'var(--text-2)' }}>
-                    {u.email}
-                  </td>
-                  {/* Role — read only เท่านั้น ไม่มี dropdown */}
-                  <td style={{ padding: '10px 12px' }}>
-                    <RoleBadge role={u.role} />
-                  </td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-2)' }}>{u.email}</td>
+                  <td style={{ padding: '10px 12px' }}><RoleBadge role={u.role} /></td>
                   <td style={{ padding: '10px 12px' }}>
                     <span style={{
                       fontSize: 10, padding: '2px 8px', borderRadius: 20,
                       background: 'var(--bg3)', color: 'var(--text-3)',
-                    }}>
-                      {u.auth_provider || 'local'}
-                    </span>
+                    }}>{u.auth_provider || 'local'}</span>
                   </td>
                   <td style={{ padding: '10px 12px' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(u.id)}
-                      style={{
-                        fontSize: 10, padding: '3px 10px', borderRadius: 20,
-                        border: 'none', cursor: 'pointer', fontWeight: 600,
-                        background: u.is_active ? 'rgba(63,185,80,0.15)' : 'var(--bg3)',
-                        color:      u.is_active ? 'var(--green)' : 'var(--text-3)',
-                      }}
-                    >
+                    <button type="button" onClick={() => handleToggle(u.id)} style={{
+                      fontSize: 10, padding: '3px 10px', borderRadius: 20,
+                      border: 'none', cursor: 'pointer', fontWeight: 600,
+                      background: u.is_active ? 'rgba(63,185,80,0.15)' : 'var(--bg3)',
+                      color:      u.is_active ? 'var(--green)' : 'var(--text-3)',
+                    }}>
                       {u.is_active ? 'Active' : 'Inactive'}
                     </button>
                   </td>
                   <td style={{ padding: '10px 12px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setConfirm({ id: u.id, username: u.username })}
+                    <button type="button" onClick={() => setConfirm({ id: u.id, username: u.username })}
                       style={{
                         fontSize: 11, padding: '3px 10px', borderRadius: 6,
                         background: 'transparent', border: '1px solid var(--red)',
                         color: 'var(--red)', cursor: 'pointer',
-                      }}
-                    >
+                      }}>
                       ลบ
                     </button>
                   </td>
@@ -455,7 +416,7 @@ function AdminUsersSection() {
         </div>
       )}
 
-      {/* Delete confirm modal */}
+      {/* Delete confirm */}
       {confirm && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
@@ -463,7 +424,7 @@ function AdminUsersSection() {
         }}>
           <div style={{
             background: 'var(--bg1)', border: '1px solid var(--border)',
-            borderRadius: 12, padding: 24, width: 320, textAlign: 'center',
+            borderRadius: 12, padding: 28, width: 320, textAlign: 'center',
           }}>
             <div style={{ fontSize: 28, marginBottom: 12 }}>⚠️</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)', marginBottom: 8 }}>
@@ -471,7 +432,7 @@ function AdminUsersSection() {
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 20 }}>
               ลบ account <strong>{confirm.username}</strong> ออกจากระบบ<br />
-              การกระทำนี้ไม่สามารถย้อนกลับได้
+              <span style={{ color: 'var(--red)', fontSize: 11 }}>ไม่สามารถย้อนกลับได้</span>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button type="button" onClick={() => setConfirm(null)}
@@ -494,10 +455,75 @@ function AdminUsersSection() {
   )
 }
 
+// ── Section: Create User ──────────────────────────────────────────────────────
+function AdminCreateSection() {
+  const [form, setForm]       = useState({ username: '', email: '', phone: '', password: '', role: 'user' })
+  const [toast,   setToast]   = useState({ msg: '', type: '' })
+  const [loading, setLoading] = useState(false)
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast({ msg: '', type: '' }), 3000)
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      await adminCreateUser(form)
+      showToast(`สร้าง '${form.username}' สำเร็จ`)
+      setForm({ username: '', email: '', phone: '', password: '', role: 'user' })
+    } catch (err) {
+      showToast(err?.response?.data?.detail || 'สร้างไม่สำเร็จ', 'error')
+    } finally { setLoading(false) }
+  }
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  return (
+    <div>
+      <SectionHeader title="สร้างผู้ใช้ใหม่" desc="สร้าง account สำหรับ contractor หรือ vendor" />
+      <Toast msg={toast.msg} type={toast.type} />
+      <form onSubmit={handleSubmit} style={{ maxWidth: 480 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="ชื่อผู้ใช้">
+            <input value={form.username} onChange={set('username')}
+              required minLength={3} maxLength={32} style={inputStyle} />
+          </Field>
+          <Field label="อีเมล">
+            <input type="email" value={form.email} onChange={set('email')}
+              required style={inputStyle} />
+          </Field>
+          <Field label="เบอร์โทร">
+            <input type="tel" value={form.phone} onChange={set('phone')}
+              required placeholder="0812345678" style={inputStyle} />
+          </Field>
+          <Field label="รหัสผ่าน">
+            <input type="password" value={form.password} onChange={set('password')}
+              required minLength={8} placeholder="≥8 ตัว พิมพ์ใหญ่+เล็ก+ตัวเลข" style={inputStyle} />
+          </Field>
+        </div>
+        <Field label="Role">
+          <select value={form.role} onChange={set('role')}
+            style={{ ...inputStyle, width: 'auto', paddingRight: 32 }}>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </Field>
+        <button type="submit" disabled={loading} className="btn-primary"
+          style={{ padding: '8px 22px', fontSize: 12, opacity: loading ? 0.7 : 1 }}>
+          {loading ? 'กำลังสร้าง…' : 'สร้าง Account'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
-  const { isAdmin } = useAuth()
-  const [profile, setProfile] = useState(null)
+  const { isAdmin, user } = useAuth()
+  const [profile,  setProfile]  = useState(null)
+  const [section,  setSection]  = useState('profile')
 
   const loadProfile = async () => {
     try {
@@ -510,39 +536,73 @@ export default function SettingsPage() {
 
   const isLocal = profile?.auth_provider !== 'google'
 
+  // เมนูที่ทุกคนเห็น
+  const personalMenus = [
+    { id: 'profile',  icon: '👤', label: 'โปรไฟล์' },
+    ...(isLocal ? [{ id: 'password', icon: '🔑', label: 'รหัสผ่าน' }] : []),
+    { id: 'theme',    icon: '🎨', label: 'ธีม' },
+  ]
+
+  // เมนู admin
+  const adminMenus = [
+    { id: 'users',  icon: '👥', label: 'จัดการผู้ใช้' },
+    { id: 'create', icon: '➕', label: 'สร้างผู้ใช้' },
+  ]
+
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 20px' }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-1)', margin: 0 }}>
-          ⚙️ Settings
-        </h1>
-        <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
-          จัดการโปรไฟล์และการตั้งค่าระบบ
-        </p>
+    <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)' }}>
+
+      {/* ── Sidebar ── */}
+      <div style={{
+        width: 220, flexShrink: 0,
+        borderRight: '1px solid var(--border)',
+        padding: '20px 12px',
+        background: 'var(--bg1)',
+      }}>
+        {/* Logo + title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, padding: '0 4px' }}>
+          <img src="/settings-icon.png" alt="Settings" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>Settings</span>
+        </div>
+
+        {/* Personal */}
+        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)',
+          textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 8px', marginBottom: 6 }}>
+          บัญชีของฉัน
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 16 }}>
+          {personalMenus.map(m => (
+            <NavItem key={m.id} {...m} active={section === m.id} onClick={setSection} />
+          ))}
+        </div>
+
+        {/* Admin zone */}
+        {isAdmin && (
+          <>
+            <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0 12px' }} />
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--blue)',
+              textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 8px', marginBottom: 6 }}>
+              Admin Zone
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {adminMenus.map(m => (
+                <NavItem key={m.id} {...m} active={section === m.id} onClick={setSection} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
-      <ProfileSection profile={profile} onRefresh={loadProfile} />
-      {isLocal && <PasswordSection />}
-      <ThemeSection />
-
-      {isAdmin && (
-        <>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            margin: '24px 0 16px',
-            padding: '0 0 8px',
-            borderBottom: '1px solid var(--border)',
-          }}>
-            <span style={{
-              fontSize: 11, fontWeight: 600, color: 'var(--blue)',
-              textTransform: 'uppercase', letterSpacing: 1,
-            }}>
-              Admin Zone
-            </span>
-          </div>
-          <AdminUsersSection />
-        </>
-      )}
+      {/* ── Content ── */}
+      <div style={{ flex: 1, padding: '32px 36px', overflowY: 'auto', background: 'var(--bg0)' }}>
+        <div style={{ maxWidth: 640 }}>
+          {section === 'profile'  && <ProfileSection profile={profile} onRefresh={loadProfile} />}
+          {section === 'password' && <PasswordSection />}
+          {section === 'theme'    && <ThemeSection />}
+          {section === 'users'    && <AdminUsersSection />}
+          {section === 'create'   && <AdminCreateSection />}
+        </div>
+      </div>
     </div>
   )
 }
