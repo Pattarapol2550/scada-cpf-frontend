@@ -538,15 +538,15 @@ export default function SettingsPage() {
 
   // เมนูที่ทุกคนเห็น
   const personalMenus = [
-    { id: 'profile',  icon: '👤', label: 'โปรไฟล์' },
-    ...(isLocal ? [{ id: 'password', icon: '🔑', label: 'รหัสผ่าน' }] : []),
-    { id: 'theme',    icon: '🎨', label: 'ธีม' },
+    { id: 'profile',  icon: '', label: 'โปรไฟล์' },
+    ...(isLocal ? [{ id: 'password', icon: '', label: 'รหัสผ่าน' }] : []),
+    { id: 'theme',    icon: '', label: 'ธีม' },
   ]
 
   // เมนู admin
   const adminMenus = [
-    { id: 'users',  icon: '👥', label: 'จัดการผู้ใช้' },
-    { id: 'create', icon: '➕', label: 'สร้างผู้ใช้' },
+    { id: 'users',  icon: '', label: 'จัดการผู้ใช้' },
+    { id: 'create', icon: '', label: 'สร้างผู้ใช้' },
   ]
 
   return (
