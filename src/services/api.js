@@ -1,5 +1,5 @@
 /**
- * src/services/api.js — เพิ่ม settings endpoints
+ * src/services/api.js — Axios instance + all API calls
  */
 import axios from 'axios'
 
@@ -32,16 +32,15 @@ export const authMe             = ()  => api.get('/api/auth/me')
 export const authGoogleCallback = (p) => api.post('/api/auth/google/callback', p)
 
 // ── Profile ───────────────────────────────────────────────────────────────────
-export const getProfile       = ()  => api.get('/api/auth/profile')
-export const updateProfile    = (p) => api.patch('/api/auth/profile', p)
-export const changePassword   = (p) => api.patch('/api/auth/change-password', p)
+export const getProfile     = ()  => api.get('/api/auth/profile')
+export const updateProfile  = (p) => api.patch('/api/auth/profile', p)
+export const changePassword = (p) => api.patch('/api/auth/change-password', p)
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
-export const adminGetUsers    = ()         => api.get('/api/auth/admin/users')
-export const adminCreateUser  = (p)        => api.post('/api/auth/admin/create-user', p)
-//export const adminUpdateRole  = (id, role) => api.patch(`/api/auth/admin/users/${id}/role`, { role })
-export const adminToggleActive= (id)       => api.patch(`/api/auth/admin/users/${id}/active`)
-export const adminDeleteUser  = (id)       => api.delete(`/api/auth/admin/users/${id}`)
+export const adminGetUsers     = ()    => api.get('/api/auth/admin/users')
+export const adminCreateUser   = (p)   => api.post('/api/auth/admin/create-user', p)
+export const adminToggleActive = (id)  => api.patch(`/api/auth/admin/users/${id}/active`)
+export const adminDeleteUser   = (id)  => api.delete(`/api/auth/admin/users/${id}`)
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
 export const getMetrics  = (compressorId, params = {}) =>
