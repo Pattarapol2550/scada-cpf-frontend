@@ -1,6 +1,5 @@
 /**
- * src/services/api.js
- * เพิ่ม authGoogleCallback สำหรับส่ง authorization code ไป backend
+ * src/services/api.js — เพิ่ม settings endpoints
  */
 import axios from 'axios'
 
@@ -27,17 +26,27 @@ api.interceptors.response.use(
 )
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-export const authRegister       = (payload) => api.post('/api/auth/register', payload)
-export const authLogin          = (payload) => api.post('/api/auth/login',    payload)
-export const authLogout         = ()        => api.post('/api/auth/logout')
-export const authMe             = ()        => api.get('/api/auth/me')
-// ส่ง { code, redirect_uri } → backend แลก token กับ Google แล้ว set cookie
-export const authGoogleCallback = (payload) => api.post('/api/auth/google/callback', payload)
+export const authLogin          = (p) => api.post('/api/auth/login',    p)
+export const authLogout         = ()  => api.post('/api/auth/logout')
+export const authMe             = ()  => api.get('/api/auth/me')
+export const authGoogleCallback = (p) => api.post('/api/auth/google/callback', p)
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+export const getProfile       = ()  => api.get('/api/auth/profile')
+export const updateProfile    = (p) => api.patch('/api/auth/profile', p)
+export const changePassword   = (p) => api.patch('/api/auth/change-password', p)
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export const adminGetUsers    = ()         => api.get('/api/auth/admin/users')
+export const adminCreateUser  = (p)        => api.post('/api/auth/admin/create-user', p)
+//export const adminUpdateRole  = (id, role) => api.patch(`/api/auth/admin/users/${id}/role`, { role })
+export const adminToggleActive= (id)       => api.patch(`/api/auth/admin/users/${id}/active`)
+export const adminDeleteUser  = (id)       => api.delete(`/api/auth/admin/users/${id}`)
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
 export const getMetrics  = (compressorId, params = {}) =>
   api.get(`/api/metrics/${compressorId}`, { params })
-export const postMetrics = (payload) => api.post('/api/metrics', payload)
+export const postMetrics = (p) => api.post('/api/metrics', p)
 
 // ── P-H Diagram ───────────────────────────────────────────────────────────────
 export const getPHDiagram = (comp, params = {}) =>
