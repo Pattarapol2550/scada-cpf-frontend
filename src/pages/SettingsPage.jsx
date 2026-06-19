@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth }  from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { ALL_KPI, KPI_MAP, DEFAULT_KPI_KEYS, loadKpiConfig, saveKpiConfig } from '../utils/kpiConfig'
 import {
   getProfile, updateProfile, changePassword,
   adminGetUsers, adminCreateUser,
@@ -519,6 +520,196 @@ function AdminCreateSection() {
   )
 }
 
+function KpiSection() {
+  const [selected, setSelected] = useState(() => loadKpiConfig())
+  const [toast,    setToast]    = useState({ msg: '', type: '' })
+  const [dragIdx,  setDragIdx]  = useState(null)   // index ที่กำลัง drag
+ 
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast({ msg: '', type: '' }), 2500)
+  }
+ 
+  // ── Toggle on/off ─────────────────────────────────────
+  const toggle = (key) => {
+    setSelected(prev =>
+      prev.includes(key)
+        ? prev.filter(k => k !== key)
+        : [...prev, key]
+    )
+  }
+ 
+  // ── Save ──────────────────────────────────────────────
+  const handleSave = () => {
+    if (selected.length === 0) {
+      showToast('ต้องเลือกอย่างน้อย 1 ค่า', 'error')
+      return
+    }
+    saveKpiConfig(selected)
+    showToast('บันทึกการตั้งค่า KPI สำเร็จ')
+  }
+ 
+  // ── Reset ─────────────────────────────────────────────
+  const handleReset = () => {
+    setSelected(DEFAULT_KPI_KEYS)
+    saveKpiConfig(DEFAULT_KPI_KEYS)
+    showToast('รีเซ็ตเป็นค่าเริ่มต้น')
+  }
+ 
+  // ── Drag handlers (สำหรับ selected list) ─────────────
+  const onDragStart = (e, idx) => {
+    setDragIdx(idx)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+ 
+  const onDragOver = (e, idx) => {
+    e.preventDefault()
+    if (dragIdx === null || dragIdx === idx) return
+    setSelected(prev => {
+      const next = [...prev]
+      const [item] = next.splice(dragIdx, 1)
+      next.splice(idx, 0, item)
+      setDragIdx(idx)
+      return next
+    })
+  }
+ 
+  const onDragEnd = () => setDragIdx(null)
+ 
+  // Group ที่มีใน ALL_KPI
+  const groups = [
+    { id: 'performance', label: 'Performance (คำนวณ)' },
+    { id: 'enthalpy',    label: 'Enthalpy (คำนวณ)'    },
+    { id: 'sensor',      label: 'Sensor Input (วัด)'  },
+  ]
+ 
+  return (
+    <div>
+      <SectionHeader
+        title="Dashboard KPI Cards"
+        desc="เลือกค่าที่ต้องการแสดงบน Dashboard และลากเรียงลำดับได้"
+      />
+      <Toast msg={toast.msg} type={toast.type} />
+ 
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+ 
+        {/* ── ซ้าย: เลือกจากทั้งหมด ── */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 10,
+            textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            ค่าทั้งหมด — คลิกเพื่อเพิ่ม/ลบ
+          </div>
+ 
+          {groups.map(g => (
+            <div key={g.id} style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)',
+                marginBottom: 6, paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
+                {g.label}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {ALL_KPI.filter(k => k.group === g.id).map(kpi => {
+                  const on = selected.includes(kpi.key)
+                  return (
+                    <button
+                      key={kpi.key}
+                      type="button"
+                      onClick={() => toggle(kpi.key)}
+                      style={{
+                        padding: '4px 10px', borderRadius: 20, fontSize: 11,
+                        fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
+                        border:      `1px solid ${on ? 'var(--blue)' : 'var(--border)'}`,
+                        background:  on ? 'rgba(56,139,253,0.12)' : 'var(--bg2)',
+                        color:       on ? 'var(--blue)' : 'var(--text-2)',
+                      }}
+                    >
+                      {on ? '✓ ' : ''}{kpi.label}
+                      <span style={{ fontSize: 9, opacity: 0.6, marginLeft: 4 }}>
+                        {kpi.unit !== '—' ? kpi.unit : ''}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+ 
+        {/* ── ขวา: ลำดับที่จะแสดง (drag to reorder) ── */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 10,
+            textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            ลำดับที่แสดง ({selected.length} cards) — ลากเพื่อเรียง
+          </div>
+ 
+          {selected.length === 0 ? (
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)',
+              fontSize: 12, background: 'var(--bg2)', borderRadius: 8,
+              border: '1px dashed var(--border)' }}>
+              ยังไม่ได้เลือกค่าไหนเลย
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {selected.map((key, idx) => {
+                const kpi = KPI_MAP[key]
+                if (!kpi) return null
+                const isDragging = dragIdx === idx
+                return (
+                  <div
+                    key={key}
+                    draggable
+                    onDragStart={e => onDragStart(e, idx)}
+                    onDragOver={e => onDragOver(e, idx)}
+                    onDragEnd={onDragEnd}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 12px', borderRadius: 8,
+                      background: isDragging ? 'rgba(56,139,253,0.1)' : 'var(--bg2)',
+                      border: `1px solid ${isDragging ? 'var(--blue)' : 'var(--border)'}`,
+                      cursor: 'grab', userSelect: 'none',
+                      opacity: isDragging ? 0.7 : 1,
+                      transition: 'background 0.15s, border-color 0.15s',
+                    }}
+                  >
+                    {/* drag handle */}
+                    <span style={{ color: 'var(--text-3)', fontSize: 14, lineHeight: 1 }}>⠿</span>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-1)', flex: 1 }}>
+                      {kpi.label}
+                    </span>
+                    <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'monospace' }}>
+                      {kpi.unit !== '—' ? kpi.unit : ''}
+                    </span>
+                    {/* remove */}
+                    <button
+                      type="button"
+                      onClick={() => toggle(key)}
+                      style={{
+                        fontSize: 12, lineHeight: 1, padding: '2px 6px', borderRadius: 4,
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        color: 'var(--text-3)',
+                      }}
+                    >×</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+ 
+          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+            <button type="button" onClick={handleSave} className="btn-primary"
+              style={{ padding: '8px 20px', fontSize: 12 }}>
+              บันทึก
+            </button>
+            <button type="button" onClick={handleReset} className="btn-ghost"
+              style={{ padding: '8px 14px', fontSize: 12 }}>
+              รีเซ็ต
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { isAdmin, user } = useAuth()
@@ -541,6 +732,7 @@ export default function SettingsPage() {
     { id: 'profile',  icon: '', label: 'โปรไฟล์' },
     ...(isLocal ? [{ id: 'password', icon: '', label: 'รหัสผ่าน' }] : []),
     { id: 'theme',    icon: '', label: 'ธีม' },
+    { id: 'kpi', icon: '', label: 'Dashboard KPI' }
   ]
 
   // เมนู admin
@@ -594,15 +786,18 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Content ── */}
-      <div style={{ flex: 1, padding: '32px 36px', overflowY: 'auto', background: 'var(--bg0)' }}>
-        <div style={{ maxWidth: 640 }}>
-          {section === 'profile'  && <ProfileSection profile={profile} onRefresh={loadProfile} />}
-          {section === 'password' && <PasswordSection />}
-          {section === 'theme'    && <ThemeSection />}
-          {section === 'users'    && <AdminUsersSection />}
-          {section === 'create'   && <AdminCreateSection />}
-        </div>
-      </div>
+      {/* ── Content ── */}
+<div style={{ flex: 1, padding: '32px 36px', overflowY: 'auto', background: 'var(--bg0)' }}>
+  {/* แก้: ถ้า section === 'kpi' ไม่จำกัด maxWidth */}
+    <div style={{ maxWidth: section === 'kpi' ? 900 : 640 }}>
+        {section === 'profile'  && <ProfileSection profile={profile} onRefresh={loadProfile} />}
+        {section === 'password' && <PasswordSection />}
+        {section === 'theme'    && <ThemeSection />}
+        {section === 'users'    && <AdminUsersSection />}
+        {section === 'create'   && <AdminCreateSection />}
+        {section === 'kpi'      && <KpiSection />}
+    </div>
+</div>
     </div>
   )
 }

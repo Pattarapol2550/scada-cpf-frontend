@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import { getPHDiagram } from '../services/api'
 import { COMPRESSORS, toLocalDT, formatThaiTime, num, lastNHours } from '../utils/format'
 import { CHART_DEFAULTS, mkDs } from '../utils/chartConfig'
+import { KPI_MAP, loadKpiConfig, getKpiValue } from '../utils/kpiConfig'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, LogarithmicScale,
@@ -134,6 +135,19 @@ export default function DashboardPage() {
   const doFetch = useCallback((s, e) => {
     fetch(comp, s !== undefined ? s : start, e !== undefined ? e : end)
   }, [comp, start, end, fetch])
+
+const [kpiKeys, setKpiKeys] = useState(() => loadKpiConfig()) 
+// listen ถ้า settings เปลี่ยน (ผู้ใช้ไปแก้ใน Settings tab แล้วกลับมา)
+useEffect(() => {
+  const handleStorage = () => setKpiKeys(loadKpiConfig())
+  window.addEventListener('storage', handleStorage)
+  // รองรับ same-tab update ผ่าน custom event
+  window.addEventListener('kpi-config-updated', handleStorage)
+  return () => {
+    window.removeEventListener('storage', handleStorage)
+    window.removeEventListener('kpi-config-updated', handleStorage)
+  }
+}, [])
  
   // initial load: 2 ชม.ล่าสุด
   useEffect(() => {
@@ -213,18 +227,45 @@ export default function DashboardPage() {
   const n = v => (typeof v === 'number' ? v : null)
  
   // KPI warns — only trigger when value is an actual number
-  const warns = {
-    cop: n(latest?.cop) !== null && n(latest?.cop) < 1.5 ? 'Low Efficiency' : '',
-    sh:  n(latest?.superheat_suc) !== null
-           ? n(latest?.superheat_suc) < 0  ? 'Floodback Risk'
-           : n(latest?.superheat_suc) > 15 ? 'High Superheat' : ''
-           : '',
-    sc:  n(latest?.subcooling) !== null
-           ? n(latest?.subcooling) < 2  ? 'Low Subcooling'
-           : n(latest?.subcooling) > 15 ? 'High Subcooling' : ''
-           : '',
-    pr:  n(latest?.pressure_ratio) !== null && n(latest?.pressure_ratio) > 10 ? 'High Ratio' : '',
+    const getWarn = (key, val) => {
+        if (val === null) return ''
+        const v = Number(val)
+        switch (key) {
+          case 'cop':            return v < 1.5              ? 'Low Efficiency'  : ''
+          case 'superheat_suc':  return v < 0 ? 'Floodback Risk' : v > 15 ? 'High Superheat' : ''
+          case 'subcooling':     return v < 2 ? 'Low Subcooling' : v > 15 ? 'High Subcooling' : ''
+          case 'pressure_ratio': return v > 10               ? 'High Ratio'      : ''
+          default:               return ''
+        }
   }
+  // accent color ตาม key
+  const KPI_ACCENT = {
+    power_kw:        'var(--cyan)',
+    cop:             'var(--green)',
+    q_e_kw:          'var(--amber)',
+    m_dot_kgh:       'var(--blue)',
+    superheat_suc:   'var(--red)',
+    subcooling:      'var(--purple)',
+    pressure_ratio:  'var(--orange)',
+    t_evap_c:        'var(--cyan)',
+    t_cond_c:        'var(--red)',
+    eta_is_pct:      'var(--green)',
+    h1:              'var(--text-2)',
+    h2:              'var(--text-2)',
+    h3:              'var(--text-2)',
+    q_l_kgkg:        'var(--amber)',
+    w_comp_kgkg:     'var(--orange)',
+    sp_kg:           'var(--cyan)',
+    dp_kg:           'var(--red)',
+    st_c:            'var(--cyan)',
+    dt_c:            'var(--red)',
+    liquid_temp_c:   'var(--purple)',
+    current_amp:     'var(--amber)',
+    evaporator_room_temp_c: 'var(--blue)',
+    condenser_temp_c:       'var(--orange)',
+  }
+
+
  
   // ── P-H chart data ───────────────────────────────────
   // Auto x-axis range from cycle points
@@ -427,13 +468,28 @@ export default function DashboardPage() {
         </div>
  
         {/* 2. KPI cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
-          <KPICard label="P_comp"       value={latest?.power_kw}          unit="kW"          accent="var(--cyan)"   />
-          <KPICard label="COP"          value={latest?.cop}               unit="—"           accent="var(--green)"  warn={warns.cop} />
-          <KPICard label="Q_e"          value={latest?.q_e_kw}            unit="kW"          accent="var(--amber)"  />
-          <KPICard label="Superheat"    value={latest?.superheat_suc}     unit="K"           accent="var(--red)"    warn={warns.sh} />
-          <KPICard label="Subcooling"   value={latest?.subcooling}        unit="K"           accent="var(--purple)" warn={warns.sc} />
-          <KPICard label="Press. Ratio" value={latest?.pressure_ratio}    unit="ratio"       accent="var(--orange)" warn={warns.pr} />
+        
+         <div style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${Math.min(kpiKeys.length, 6)}, 1fr)`,
+          gap: 10,
+        }}>
+          {kpiKeys.map(key => {
+            const kpi = KPI_MAP[key]
+            if (!kpi) return null
+            const val  = records[0] ? getKpiValue(records[0], key) : null
+            const warn = getWarn(key, val)
+            return (
+              <KPICard
+                key={key}
+                label={kpi.label}
+                value={val}
+                unit={kpi.unit}
+                accent={KPI_ACCENT[key] ?? 'var(--text-2)'}
+                warn={warn}
+              />
+            )
+          })}
         </div>
  
         {/* 3. COP Trend + P-H Diagram */}
