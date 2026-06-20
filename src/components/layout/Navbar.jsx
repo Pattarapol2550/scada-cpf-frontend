@@ -1,7 +1,6 @@
 /**
  * src/components/layout/Navbar.jsx
- * - ลบ theme toggle (ย้ายไปหน้า Settings แล้ว)
- * - เปลี่ยน settings เป็นรูปภาพ /settings-icon.png
+ * เพิ่ม Overview ใน NAV_LINKS
  */
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -47,6 +46,7 @@ function useConnectionStatus() {
 }
 
 const NAV_LINKS = [
+  { to: '/overview',   label: 'Overview'   },
   { to: '/dashboard',  label: 'Dashboard'  },
   { to: '/history',    label: 'History'    },
   { to: '/input',      label: 'Input'      },
@@ -55,11 +55,11 @@ const NAV_LINKS = [
 ]
 
 export default function Navbar({ connStatus: connStatusProp }) {
-  const { logout, user }  = useAuth()
-  const location          = useLocation()
-  const navigate          = useNavigate()
-  const probedStatus      = useConnectionStatus()
-  const connStatus        = connStatusProp ?? probedStatus
+  const { logout }   = useAuth()
+  const location     = useNavigate ? useLocation() : { pathname: '/' }
+  const navigate     = useNavigate()
+  const probedStatus = useConnectionStatus()
+  const connStatus   = connStatusProp ?? probedStatus
 
   const handleLogout = async () => {
     try { await authLogout() } catch { /* ignore */ }
@@ -108,7 +108,7 @@ export default function Navbar({ connStatus: connStatusProp }) {
         })}
       </nav>
 
-      {/* Right */}
+      {/* Right side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <Clock />
 
@@ -124,7 +124,7 @@ export default function Navbar({ connStatus: connStatusProp }) {
           {connLabel}
         </div>
 
-        {/* Settings icon — รูปภาพแทน emoji */}
+        {/* Settings icon */}
         <Link
           to="/settings"
           aria-label="Settings"
@@ -137,11 +137,7 @@ export default function Navbar({ connStatus: connStatusProp }) {
             transition: 'background 0.15s, border-color 0.15s',
           }}
         >
-          <img
-            src="/settings-icon.png"
-            alt="Settings"
-            style={{ width: 20, height: 20, objectFit: 'contain' }}
-          />
+          <img src="/settings-icon.png" alt="Settings" style={{ width: 20, height: 20, objectFit: 'contain' }} />
         </Link>
 
         {/* Logout */}
