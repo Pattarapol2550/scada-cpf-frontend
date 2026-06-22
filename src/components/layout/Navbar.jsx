@@ -46,7 +46,6 @@ function useConnectionStatus() {
 }
 
 const NAV_LINKS = [
-  { to: '/overview',   label: 'Overview'   },
   { to: '/dashboard',  label: 'Dashboard'  },
   { to: '/history',    label: 'History'    },
   { to: '/input',      label: 'Input'      },
