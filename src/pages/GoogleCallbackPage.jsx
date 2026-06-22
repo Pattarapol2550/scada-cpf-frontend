@@ -47,7 +47,7 @@ export default function GoogleCallbackPage() {
       .then(res => {
         const { user } = res.data || {}
         login(user)
-        navigate('/overview', { replace: true })
+        navigate('/dashboard', { replace: true })
       })
       .catch(err => {
         const status = err?.response?.status
