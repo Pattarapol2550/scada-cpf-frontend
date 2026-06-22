@@ -3,14 +3,14 @@ import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider }  from './context/AuthContext'
 import ProtectedRoute    from './components/layout/ProtectedRoute'
 
-import LoginPage          from './pages/LoginPage'
-import GoogleCallbackPage from './pages/GoogleCallbackPage'
-import OverviewPage       from './pages/OverviewPage'
-import DashboardPage      from './pages/DashboardPage'
-import HistoryPage        from './pages/HistoryPage'
-import ManualInputPage    from './pages/ManualInputPage'
-import PHDiagramPage      from './pages/PHDiagramPage'
-import CalculatorPage     from './pages/CalculatorPage'
+import LoginPage           from './pages/LoginPage'
+import GoogleCallbackPage  from './pages/GoogleCallbackPage'   // ← ใหม่
+import DashboardPage       from './pages/DashboardPage'
+import HistoryPage         from './pages/HistoryPage'
+import ManualInputPage     from './pages/ManualInputPage'
+import PHDiagramPage       from './pages/PHDiagramPage'
+import CalculatorPage      from './pages/CalculatorPage'
+import DevelopPage         from './pages/DevelopPage'
 import SettingsPage       from './pages/SettingsPage'
 
 export default function App() {
@@ -28,6 +28,7 @@ export default function App() {
             <Route path="/input"      element={<ProtectedRoute><ManualInputPage /></ProtectedRoute>} />
             <Route path="/ph-diagram" element={<ProtectedRoute><PHDiagramPage /></ProtectedRoute>} />
             <Route path="/calculator" element={<ProtectedRoute><CalculatorPage /></ProtectedRoute>} />
+            <Route path="/develop"   element={<ProtectedRoute><DevelopPage /></ProtectedRoute>} />
             <Route path="/settings"   element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
             <Route path="*" element={<Navigate to="/overview" replace />} />

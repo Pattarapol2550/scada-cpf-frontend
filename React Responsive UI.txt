@@ -1,0 +1,217 @@
+React Responsive UI (Modern Approach - 2026)
+
+==================================================
+CORE CONCEPT
+============
+
+Responsive ยุคใหม่ = ไม่ใช่แค่ resize UI
+แต่คือ “Adaptive Layout System”
+
+เปลี่ยนจาก:
+
+* Breakpoint-based (เก่า)
+  → ไปเป็น
+* Fluid + Container-based + Data-driven
+
+==================================================
+EVOLUTION
+=========
+
+[OLD]
+
+* @media (mobile / tablet / desktop)
+* fixed pixel
+* layout แตกง่าย
+
+[MODERN]
+
+* Fluid layout
+* Container query
+* ViewBox (สำหรับ SVG)
+* Layout driven by data
+
+==================================================
+4 CORE PRINCIPLES
+=================
+
+1. FLUID LAYOUT
+
+---
+
+ไม่ใช้ breakpoint เยอะ
+ใช้ layout ที่ “ยืดเอง”
+
+ตัวอย่าง:
+grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+
+ผลลัพธ์:
+
+* UI ไหลตามขนาดจอ
+* ลด media query
+
+---
+
+2. CONTAINER-BASED RESPONSIVE
+
+---
+
+ไม่ดู screen size
+แต่ดู “ขนาด container”
+
+แนวคิด:
+component จะปรับตัวเองตามพื้นที่ที่มี
+
+ข้อดี:
+
+* reusable component
+* ไม่ผูกกับทั้งหน้า
+
+---
+
+3. VIEWBOX-FIRST (IMPORTANT FOR SCADA)
+
+---
+
+ใช้กับ SVG UI
+
+<svg viewBox="0 0 1400 600">
+
+แนวคิด:
+
+* ใช้ coordinate system
+* ไม่ใช้ pixel จริง
+* scale อัตโนมัติ
+
+เหมาะกับ:
+
+* dashboard diagram
+* system visualization
+
+---
+
+4. DATA-DRIVEN LAYOUT
+
+---
+
+layout ไม่ได้อยู่แค่ CSS
+แต่อยู่ใน config
+
+ตัวอย่าง:
+
+const layout = {
+mobile: { tankX: 200 },
+desktop: { tankX: 500 }
+}
+
+หรือ:
+
+const getLayout = (width) => {
+if (width < 600) return mobile
+return desktop
+}
+
+==================================================
+REACT IMPLEMENTATION
+====================
+
+1. SVG (CORE LAYER)
+
+---
+
+* ใช้ viewBox
+* ห้าม fix pixel
+* ใช้ coordinate system
+
+2. UI LAYER
+
+---
+
+* ใช้ grid auto-fit
+* ใช้ flex แบบ fluid
+
+3. STATE LAYER
+
+---
+
+* layout + data แยกจาก UI
+* bind state → component
+
+==================================================
+RESPONSIVE STRATEGY (RECOMMENDED)
+=================================
+
+Layer 1: Diagram (SVG)
+
+* scale ด้วย viewBox
+
+Layer 2: UI (Cards / Panels)
+
+* ใช้ grid fluid
+
+Layer 3: Logic
+
+* config-driven layout
+
+==================================================
+TOOLS / HOOKS
+=============
+
+1. ResizeObserver
+
+---
+
+ใช้ detect ขนาด container
+
+2. useMediaQuery
+
+---
+
+ยังใช้ได้ แต่ไม่ใช่หลัก
+
+==================================================
+BEST PRACTICE
+=============
+
+DO:
+
+* ใช้ SVG สำหรับ diagram
+* ใช้ config-driven layout
+* ใช้ fluid grid
+* ใช้ container-based design
+
+DON'T:
+
+* hardcode pixel เยอะ
+* ใช้ breakpoint มากเกินไป
+* ใช้ absolute layout ทั้งระบบ
+* resize layout manual
+
+==================================================
+FOR YOUR PROJECT (SCADA UI)
+===========================
+
+แนะนำให้ใช้:
+
+1. SVG + viewBox (mandatory)
+2. config-driven positioning
+3. relative หรือ graph layout
+4. fluid UI (grid auto-fit)
+
+==================================================
+SUMMARY
+=======
+
+Modern Responsive =
+
+Fluid Layout
+
+* Container-based
+* ViewBox (for diagram)
+* Data-driven Layout
+
+==================================================
+KEY INSIGHT
+===========
+
+อย่า “ย่อ UI ให้เล็กลง”
+แต่ต้อง “ออกแบบให้ UI ยืดได้ตั้งแต่แรก”

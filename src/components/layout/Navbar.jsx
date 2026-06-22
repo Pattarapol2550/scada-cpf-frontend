@@ -52,6 +52,7 @@ const NAV_LINKS = [
   { to: '/input',      label: 'Input'      },
   { to: '/ph-diagram', label: 'P-H'        },
   { to: '/calculator', label: 'Calculator' },
+  { to: '/develop',    label: 'Develop'    },
 ]
 
 export default function Navbar({ connStatus: connStatusProp }) {
