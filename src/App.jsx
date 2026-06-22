@@ -13,6 +13,7 @@ import HistoryPage         from './pages/HistoryPage'
 import ManualInputPage     from './pages/ManualInputPage'
 import PHDiagramPage       from './pages/PHDiagramPage'
 import CalculatorPage      from './pages/CalculatorPage'
+import DevelopPage         from './pages/DevelopPage'
 
 export default function App() {
   return (
@@ -40,6 +41,9 @@ export default function App() {
             } />
             <Route path="/calculator" element={
               <ProtectedRoute><CalculatorPage /></ProtectedRoute>
+            } />
+            <Route path="/develop" element={
+              <ProtectedRoute><DevelopPage /></ProtectedRoute>
             } />
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
