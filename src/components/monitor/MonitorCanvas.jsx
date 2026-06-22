@@ -1,4 +1,5 @@
 import { VIEWBOX } from '../../config/monitor/schematicTheme.js'
+import PipesLayer from './layers/PipesLayer.jsx'
 import SymbolsLayer from './layers/SymbolsLayer.jsx'
 
 /**
@@ -61,6 +62,7 @@ export default function MonitorCanvas() {
         rx="4"
       />
 
+      <PipesLayer />
       <SymbolsLayer />
     </svg>
   )

@@ -49,8 +49,37 @@ export const nodes = [
   { id: 'load-air-cond',       type: 'LoadUnit', x: 920,  y: 700, label: 'Air Cond.' },
 ]
 
-/** @type {Array<{ id: string, from: string, to: string, color: string, dashed?: boolean, fromPort?: string, toPort?: string }>} */
-export const edges = []
+/** @type {Array<{ id: string, from: string, to: string, color: string, dashed?: boolean, fromPort?: string, toPort?: string, route?: 'hv'|'vh', width?: number }>} */
+export const edges = [
+  // ── Top: evaporators → condensing side ──
+  { id: 'e-evap1-hp',    from: 'evap-1', to: 'hp-tank', color: 'suction',  fromPort: 'bottom', toPort: 'left' },
+  { id: 'e-evap2-inter', from: 'evap-2', to: 'inter',   color: 'suction',  fromPort: 'bottom', toPort: 'left' },
+
+  // ── Discharge: screws → HP / Inter ──
+  { id: 'e-screw4-hp',   from: 'screw-4', to: 'hp-tank', color: 'discharge', fromPort: 'top', toPort: 'bottom' },
+  { id: 'e-screw5-inter', from: 'screw-5', to: 'inter',  color: 'discharge', fromPort: 'top', toPort: 'bottom', dashed: true },
+  { id: 'e-screw7-inter', from: 'screw-7', to: 'inter',  color: 'discharge', fromPort: 'top', toPort: 'right' },
+
+  // ── Booster / high-stage headers ──
+  { id: 'e-booster-header', from: 'screw-1', to: 'screw-4', color: 'suction',   fromPort: 'right', toPort: 'left' },
+  { id: 'e-high-header',    from: 'screw-5', to: 'screw-7', color: 'discharge', fromPort: 'right', toPort: 'left' },
+
+  // ── Suction: screws → LP tanks ──
+  { id: 'e-screw1-lp1', from: 'screw-1', to: 'lp-1', color: 'suction', fromPort: 'bottom', toPort: 'top', route: 'vh' },
+  { id: 'e-screw3-lp2', from: 'screw-3', to: 'lp-2', color: 'suction', fromPort: 'bottom', toPort: 'top', route: 'vh' },
+  { id: 'e-screw6-lp3', from: 'screw-6', to: 'lp-3', color: 'suction', fromPort: 'bottom', toPort: 'top', route: 'vh' },
+
+  // ── LP tanks → valves ──
+  { id: 'e-lp1-v1', from: 'lp-1', to: 'valve-lp-1', color: 'liquid', fromPort: 'bottom', toPort: 'top' },
+  { id: 'e-lp2-v2', from: 'lp-2', to: 'valve-lp-2', color: 'liquid', fromPort: 'bottom', toPort: 'top' },
+  { id: 'e-lp3-v3', from: 'lp-3', to: 'valve-lp-3', color: 'liquid', fromPort: 'bottom', toPort: 'top' },
+
+  // ── Valves → load units ──
+  { id: 'e-v1-load1', from: 'valve-lp-1', to: 'load-spiral-freezer', color: 'liquid', fromPort: 'bottom', toPort: 'top', route: 'vh' },
+  { id: 'e-v2-load2', from: 'valve-lp-2', to: 'load-chill-spiral',   color: 'liquid', fromPort: 'bottom', toPort: 'top', route: 'vh' },
+  { id: 'e-v3-load3', from: 'valve-lp-3', to: 'load-chill-room',     color: 'liquid', fromPort: 'bottom', toPort: 'top', route: 'vh' },
+  { id: 'e-lp3-load4', from: 'lp-3', to: 'load-air-cond', color: 'liquid', fromPort: 'right', toPort: 'top', route: 'vh' },
+]
 
 /** @type {Array<{ id: string, type: 'temp'|'pressure', x: number, y: number, tag: string }>} */
 export const readouts = []
