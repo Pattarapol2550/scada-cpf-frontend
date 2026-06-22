@@ -59,6 +59,35 @@ export const DEFAULT_READOUTS = {
   'readout.hp_press':  { value: 12.3, unit: 'bar' },
   'readout.evap_temp': { value: -40,  unit: '°C' },
   'readout.lp_temp':   { value: -10,  unit: '°C' },
+  'readout.inter_temp': { value: 36, unit: '°C' },
+}
+
+/** Per-scenario readout overrides */
+export const SCENARIO_READOUTS = {
+  mixedAlarms: {
+    'readout.hp_temp':  { value: 38.2, unit: '°C' },
+    'readout.hp_press': { value: 14.1, unit: 'bar' },
+    'readout.lp_temp':  { value: -8.5, unit: '°C' },
+  },
+  someStopped: {
+    'readout.hp_temp': { value: 32.1, unit: '°C' },
+  },
+  noData: {
+    'readout.hp_temp':   { value: null, unit: '°C' },
+    'readout.hp_press':  { value: null, unit: 'bar' },
+    'readout.evap_temp': { value: null, unit: '°C' },
+    'readout.lp_temp':   { value: null, unit: '°C' },
+    'readout.inter_temp': { value: null, unit: '°C' },
+  },
+}
+
+export function getScenarioReadouts(scenarioKey) {
+  const overrides = SCENARIO_READOUTS[scenarioKey] ?? {}
+  const merged = { ...DEFAULT_READOUTS }
+  for (const [tag, val] of Object.entries(overrides)) {
+    merged[tag] = { ...merged[tag], ...val }
+  }
+  return merged
 }
 
 export { warningAlarm, criticalAlarm }

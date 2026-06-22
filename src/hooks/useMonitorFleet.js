@@ -1,5 +1,9 @@
 import { useState, useMemo } from 'react'
-import { MOCK_SCENARIOS, SCENARIO_KEYS } from '../mocks/monitor/fleetSnapshots.js'
+import {
+  MOCK_SCENARIOS,
+  SCENARIO_KEYS,
+  getScenarioReadouts,
+} from '../mocks/monitor/fleetSnapshots.js'
 import {
   resolveCompressorStatus,
   resolveLineStatus,
@@ -35,10 +39,16 @@ export function useMonitorFleet({ initialScenario = 'allNormal' } = {}) {
 
   const lineStatus = useMemo(() => resolveLineStatus(fleet), [fleet])
 
+  const tagValues = useMemo(() => {
+    if (!IS_MOCK) return getScenarioReadouts('allNormal')
+    return getScenarioReadouts(scenarioKey)
+  }, [scenarioKey])
+
   return {
     compressors,
     fleet,
     lineStatus,
+    tagValues,
     scenarioKey,
     setScenarioKey,
     scenarioKeys: SCENARIO_KEYS,

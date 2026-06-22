@@ -12,6 +12,7 @@ export default function DevelopPage() {
   const {
     compressors,
     lineStatus,
+    tagValues,
     scenarioKey,
     setScenarioKey,
     isMock,
@@ -38,7 +39,7 @@ export default function DevelopPage() {
           isMock={isMock}
         />
         <LineStatusBar lineStatus={lineStatus} />
-        <MonitorCanvas compressors={compressors} />
+        <MonitorCanvas compressors={compressors} tagValues={tagValues} />
       </main>
     </div>
   )

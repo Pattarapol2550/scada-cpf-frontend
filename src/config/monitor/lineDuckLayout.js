@@ -82,7 +82,13 @@ export const edges = [
 ]
 
 /** @type {Array<{ id: string, type: 'temp'|'pressure', x: number, y: number, tag: string }>} */
-export const readouts = []
+export const readouts = [
+  { id: 'ro-hp-temp',   type: 'temp',     x: 710, y: 55,  tag: 'readout.hp_temp' },
+  { id: 'ro-hp-press',  type: 'pressure', x: 710, y: 130, tag: 'readout.hp_press' },
+  { id: 'ro-evap-temp', type: 'temp',     x: 220, y: 155, tag: 'readout.evap_temp' },
+  { id: 'ro-inter-temp', type: 'temp',    x: 900, y: 55,  tag: 'readout.inter_temp' },
+  { id: 'ro-lp-temp',   type: 'temp',     x: 590, y: 440, tag: 'readout.lp_temp' },
+]
 
 export const sectionLabels = [
   { id: 'sec-booster',     text: 'Booster',     x: 265, y: 265, color: '#c9a227' },

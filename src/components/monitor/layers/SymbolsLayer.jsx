@@ -25,6 +25,7 @@ export default function SymbolsLayer({ nodeList = nodes, compressors = {} }) {
               key={node.id}
               node={node}
               comp={compId ? compressors[compId] : undefined}
+              compId={compId}
             />
           )
         }

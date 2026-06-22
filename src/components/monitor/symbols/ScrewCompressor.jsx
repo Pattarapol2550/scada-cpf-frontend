@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { SYMBOL_SIZE } from '../../../config/monitor/lineDuckBindings.js'
 import { getSymbolVisual } from '../../../config/monitor/schematicTheme.js'
 import { STATUS } from '../../../utils/monitor/compressorStatus.js'
@@ -12,7 +13,8 @@ function dashArray(style) {
 /**
  * Screw compressor with alarm-driven border and optional S/W overlay.
  */
-export default function ScrewCompressor({ node, comp }) {
+export default function ScrewCompressor({ node, comp, compId }) {
+  const navigate = useNavigate()
   const size = SYMBOL_SIZE.ScrewCompressor
   const w = node.width ?? size.width
   const h = node.height ?? size.height
@@ -25,13 +27,28 @@ export default function ScrewCompressor({ node, comp }) {
 
   const isSW = mode === 'SW'
 
+  const handleClick = () => {
+    if (compId) navigate('/dashboard', { state: { comp: compId } })
+  }
+
+  const handleKeyDown = (e) => {
+    if (compId && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault()
+      navigate('/dashboard', { state: { comp: compId } })
+    }
+  }
+
   return (
     <g
       className={`screw-compressor${visual.pulse ? ' monitor-critical-pulse' : ''}`}
       data-status={status}
       data-node-id={node.id}
+      onClick={compId ? handleClick : undefined}
+      onKeyDown={compId ? handleKeyDown : undefined}
+      role={compId ? 'button' : undefined}
+      tabIndex={compId ? 0 : undefined}
+      style={{ cursor: compId ? 'pointer' : 'default' }}
     >
-      {/* Health status border */}
       {visual.borderWidth > 0 && (
         <rect
           x={x - pad}
@@ -46,7 +63,6 @@ export default function ScrewCompressor({ node, comp }) {
         />
       )}
 
-      {/* Manual S/W overlay (independent of alarm color) */}
       {isSW && (
         <rect
           x={x - pad - 2}

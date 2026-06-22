@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import KPICard from '../components/dashboard/KPICard'
 import AlarmLog from '../components/dashboard/AlarmLog'
@@ -441,6 +442,7 @@ function FleetOverview({ onSelectComp }) {
 // ── DashboardPage ─────────────────────────────────────────
 export default function DashboardPage() {
   const { user }    = useAuth()
+  const location    = useLocation()
   const [comp, setComp]         = useState('OVERVIEW') // ค่าเริ่มต้น
   const [start, setStart]       = useState('')
   const [end,   setEnd]         = useState('')
@@ -481,6 +483,14 @@ export default function DashboardPage() {
       fetch(selectedComp, s, e)
     }
   }, [fetch])
+
+  // Open compressor from synoptic monitor (DevelopPage) via location.state.comp
+  useEffect(() => {
+    const fromMonitor = location.state?.comp
+    if (fromMonitor && COMPRESSORS.includes(fromMonitor)) {
+      handleSelectComp(fromMonitor)
+    }
+  }, [location.state, handleSelectComp])
 
   const doFetch = useCallback((s, e) => {
     if (comp !== 'OVERVIEW') {

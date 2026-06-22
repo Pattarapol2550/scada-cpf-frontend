@@ -1,6 +1,7 @@
 import { VIEWBOX } from '../../config/monitor/schematicTheme.js'
 import PipesLayer from './layers/PipesLayer.jsx'
 import SymbolsLayer from './layers/SymbolsLayer.jsx'
+import ReadoutsLayer from './layers/ReadoutsLayer.jsx'
 
 /**
  * SVG root for synoptic diagram. Layers added in later steps.
@@ -8,7 +9,7 @@ import SymbolsLayer from './layers/SymbolsLayer.jsx'
  * @param {Record<string, unknown>} [props.compressors] — fleet map (Step 7+)
  * @param {string} [props.lineStatus] — fleet rollup (Step 7+)
  */
-export default function MonitorCanvas({ compressors = {} }) {
+export default function MonitorCanvas({ compressors = {}, tagValues = {} }) {
   const { width, height } = VIEWBOX
 
   return (
@@ -64,6 +65,7 @@ export default function MonitorCanvas({ compressors = {} }) {
 
       <PipesLayer />
       <SymbolsLayer compressors={compressors} />
+      <ReadoutsLayer tagValues={tagValues} />
     </svg>
   )
 }
