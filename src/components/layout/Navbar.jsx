@@ -1,19 +1,13 @@
 /**
- * components/layout/Navbar.jsx
- *
- * Changes vs original:
- *  - logout now calls POST /api/auth/logout first (clears httpOnly cookie server-side)
- *    then clears local state — prevents stale cookie session
- *  - connStatus probe extracts to useConnectionStatus hook (unchanged logic)
+ * src/components/layout/Navbar.jsx
+ * เพิ่ม Overview ใน NAV_LINKS
  */
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useTheme } from '../../context/ThemeContext'
-import { useAuth }  from '../../context/AuthContext'
+import { useAuth }    from '../../context/AuthContext'
 import { authLogout } from '../../services/api'
 import api from '../../services/api'
 
-// ── Clock ─────────────────────────────────────────────────────────────────────
 function Clock() {
   const [time, setTime] = useState('')
   useEffect(() => {
@@ -27,34 +21,32 @@ function Clock() {
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [])
-  return <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-3)' }}>{time}</span>
+  return (
+    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-3)' }}>
+      {time}
+    </span>
+  )
 }
 
-// ── Connection probe ──────────────────────────────────────────────────────────
 function useConnectionStatus() {
   const [status, setStatus] = useState('connecting')
   const timerRef = useRef(null)
-
   const probe = async () => {
     try {
       await api.get('/api/metrics/COMP-01', { params: { limit: 1 }, timeout: 8_000 })
       setStatus('live')
-    } catch {
-      setStatus('error')
-    }
+    } catch { setStatus('error') }
   }
-
   useEffect(() => {
     probe()
     timerRef.current = setInterval(probe, 30_000)
     return () => clearInterval(timerRef.current)
   }, [])
-
   return status
 }
 
-// ── Nav links ─────────────────────────────────────────────────────────────────
 const NAV_LINKS = [
+  { to: '/overview',   label: 'Overview'   },
   { to: '/dashboard',  label: 'Dashboard'  },
   { to: '/history',    label: 'History'    },
   { to: '/input',      label: 'Input'      },
@@ -63,25 +55,22 @@ const NAV_LINKS = [
   { to: '/develop',    label: 'Develop'    },
 ]
 
-// ── Component ─────────────────────────────────────────────────────────────────
 export default function Navbar({ connStatus: connStatusProp }) {
-  const { theme, toggle } = useTheme()
-  const { logout }        = useAuth()
-  const location          = useLocation()
-  const navigate          = useNavigate()
-
-  const isDark       = theme === 'dark'
+  const { logout }   = useAuth()
+  const location     = useNavigate ? useLocation() : { pathname: '/' }
+  const navigate     = useNavigate()
   const probedStatus = useConnectionStatus()
   const connStatus   = connStatusProp ?? probedStatus
 
   const handleLogout = async () => {
-    try { await authLogout() } catch { /* ignore — cookie may already be gone */ }
+    try { await authLogout() } catch { /* ignore */ }
     logout()
     navigate('/login')
   }
 
   const connColor = { live: 'var(--green)', error: 'var(--red)', connecting: 'var(--text-3)' }[connStatus] ?? 'var(--text-3)'
-  const connLabel = { live: 'LIVE',         error: 'ERROR',      connecting: 'Connecting…'  }[connStatus] ?? 'Connecting…'
+  const connLabel = { live: 'LIVE',         error: 'ERROR',      connecting: 'Connecting…'  }[connStatus] ?? '…'
+  const isSettings = location.pathname === '/settings'
 
   return (
     <nav style={{
@@ -89,7 +78,6 @@ export default function Navbar({ connStatus: connStatusProp }) {
       background: 'var(--bg1)', borderBottom: '1px solid var(--border)',
       height: 52, display: 'flex', alignItems: 'center',
       justifyContent: 'space-between', padding: '0 20px', gap: 16,
-      transition: 'background 0.2s',
     }}>
       {/* Brand */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
@@ -122,7 +110,7 @@ export default function Navbar({ connStatus: connStatusProp }) {
       </nav>
 
       {/* Right side */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <Clock />
 
         {/* Connection status */}
@@ -137,31 +125,21 @@ export default function Navbar({ connStatus: connStatusProp }) {
           {connLabel}
         </div>
 
-        {/* Theme toggle */}
-        <div
-          role="button" aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-          onClick={toggle}
-          onKeyDown={e => e.key === 'Enter' && toggle()}
-          tabIndex={0}
+        {/* Settings icon */}
+        <Link
+          to="/settings"
+          aria-label="Settings"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 32, height: 32, borderRadius: 8,
+            background:   isSettings ? 'var(--bg3)'    : 'transparent',
+            border:       `1px solid ${isSettings ? 'var(--border)' : 'transparent'}`,
+            textDecoration: 'none',
+            transition: 'background 0.15s, border-color 0.15s',
+          }}
         >
-          <span style={{ fontSize: 11, color: 'var(--text-2)', userSelect: 'none' }}>
-            {isDark ? 'Dark' : 'Light'}
-          </span>
-          <div style={{
-            position: 'relative', width: 36, height: 20, borderRadius: 10,
-            background: isDark ? 'var(--bg3)' : 'var(--cyan)',
-            border: '1px solid var(--border)', transition: 'background 0.2s',
-          }}>
-            <div style={{
-              position: 'absolute', top: 2,
-              left: isDark ? 2 : 16,
-              width: 14, height: 14, borderRadius: '50%',
-              background: isDark ? 'var(--text-2)' : '#fff',
-              transition: 'left 0.2s',
-            }} />
-          </div>
-        </div>
+          <img src="/settings-icon.png" alt="Settings" style={{ width: 20, height: 20, objectFit: 'contain' }} />
+        </Link>
 
         {/* Logout */}
         <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={handleLogout}>

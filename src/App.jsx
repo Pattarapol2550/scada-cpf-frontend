@@ -1,6 +1,3 @@
-// ── App.jsx ───────────────────────────────────────────────────────────────────
-// เพิ่ม route /auth/callback สำหรับรับ Google redirect
-
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider }  from './context/AuthContext'
@@ -14,6 +11,7 @@ import ManualInputPage     from './pages/ManualInputPage'
 import PHDiagramPage       from './pages/PHDiagramPage'
 import CalculatorPage      from './pages/CalculatorPage'
 import DevelopPage         from './pages/DevelopPage'
+import SettingsPage       from './pages/SettingsPage'
 
 export default function App() {
   return (
@@ -21,32 +19,19 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
-            {/* Public */}
             <Route path="/login"         element={<LoginPage />} />
-            {/* Google OAuth callback — รับ ?code=xxx จาก Google */}
             <Route path="/auth/callback" element={<GoogleCallbackPage />} />
 
-            {/* Protected */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute><DashboardPage /></ProtectedRoute>
-            } />
-            <Route path="/history" element={
-              <ProtectedRoute><HistoryPage /></ProtectedRoute>
-            } />
-            <Route path="/input" element={
-              <ProtectedRoute><ManualInputPage /></ProtectedRoute>
-            } />
-            <Route path="/ph-diagram" element={
-              <ProtectedRoute><PHDiagramPage /></ProtectedRoute>
-            } />
-            <Route path="/calculator" element={
-              <ProtectedRoute><CalculatorPage /></ProtectedRoute>
-            } />
-            <Route path="/develop" element={
-              <ProtectedRoute><DevelopPage /></ProtectedRoute>
-            } />
+            <Route path="/overview"   element={<ProtectedRoute><OverviewPage /></ProtectedRoute>} />
+            <Route path="/dashboard"  element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/history"    element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+            <Route path="/input"      element={<ProtectedRoute><ManualInputPage /></ProtectedRoute>} />
+            <Route path="/ph-diagram" element={<ProtectedRoute><PHDiagramPage /></ProtectedRoute>} />
+            <Route path="/calculator" element={<ProtectedRoute><CalculatorPage /></ProtectedRoute>} />
+            <Route path="/develop"   element={<ProtectedRoute><DevelopPage /></ProtectedRoute>} />
+            <Route path="/settings"   element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/overview" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
