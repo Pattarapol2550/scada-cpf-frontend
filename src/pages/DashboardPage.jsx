@@ -360,18 +360,18 @@ function FleetOverview({ onSelectComp }) {
       {/* 3. Charts row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 220px', gap: 10 }}>
         {/* COP bar chart */}
-        <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+        <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', minWidth: 0 }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>COP comparison</div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
             <LegendItem color="#378add" label="≥ 1.5 — ปกติ" />
             <LegendItem color="#e24b4a" label="< 1.5 — ต่ำ" />
             <LegendItem color="#e24b4a" label="── threshold 1.5" />
           </div>
-          <div style={{ position: 'relative', height: 200 }}><Bar data={copChartData} options={barOpts(1.5, 2.5, '')} /></div>
+          <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}><Bar data={copChartData} options={barOpts(1.5, 2.5, '')} /></div>
         </div>
 
         {/* Superheat bar chart */}
-        <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+        <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', minWidth: 0 }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Superheat (K)</div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
             <LegendItem color="#1d9e75" label="2–15 K — ปกติ" />
@@ -379,16 +379,16 @@ function FleetOverview({ onSelectComp }) {
             <LegendItem color="#e24b4a" label="> 15 K — สูง" />
             <LegendItem color="#e24b4a" label="── limit 15 K" />
           </div>
-          <div style={{ position: 'relative', height: 200 }}><Bar data={shChartData} options={barOpts(15, Math.max(20, ...shValues.filter(Boolean)) + 2, ' K')} /></div>
+          <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}><Bar data={shChartData} options={barOpts(15, Math.max(20, ...shValues.filter(Boolean)) + 2, ' K')} /></div>
         </div>
 
         {/* Power donut */}
-        <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+        <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', minWidth: 0 }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Power distribution</div>
           <div style={{ textAlign: 'center', marginBottom: 6 }}>
             <span style={{ fontSize: 18, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-1)' }}>{totalPower.toFixed(1)} kW</span>
           </div>
-          <div style={{ position: 'relative', height: 130 }}>
+          <div style={{ position: 'relative', height: 130, overflow: 'hidden' }}>
             <Doughnut data={donutData} options={{ responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { display: false } }, animation: false }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 6px', marginTop: 10 }}>
