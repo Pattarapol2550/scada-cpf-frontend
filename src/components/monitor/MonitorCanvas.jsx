@@ -8,7 +8,7 @@ import SymbolsLayer from './layers/SymbolsLayer.jsx'
  * @param {Record<string, unknown>} [props.compressors] — fleet map (Step 7+)
  * @param {string} [props.lineStatus] — fleet rollup (Step 7+)
  */
-export default function MonitorCanvas() {
+export default function MonitorCanvas({ compressors = {} }) {
   const { width, height } = VIEWBOX
 
   return (
@@ -63,7 +63,7 @@ export default function MonitorCanvas() {
       />
 
       <PipesLayer />
-      <SymbolsLayer />
+      <SymbolsLayer compressors={compressors} />
     </svg>
   )
 }

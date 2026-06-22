@@ -3,12 +3,12 @@
  * Route: /develop
  */
 import Navbar from '../components/layout/Navbar'
+import LineStatusBar from '../components/monitor/LineStatusBar'
 import MonitorCanvas from '../components/monitor/MonitorCanvas'
 import { useMonitorFleet } from '../hooks/useMonitorFleet'
 
 export default function DevelopPage() {
-  // Hook wired for mock fleet; consumed by layers in Steps 7+
-  useMonitorFleet()
+  const { compressors, lineStatus } = useMonitorFleet()
 
   return (
     <div style={{
@@ -25,7 +25,8 @@ export default function DevelopPage() {
         padding: '12px 16px 16px',
         minHeight: 0,
       }}>
-        <MonitorCanvas />
+        <LineStatusBar lineStatus={lineStatus} />
+        <MonitorCanvas compressors={compressors} />
       </main>
     </div>
   )
