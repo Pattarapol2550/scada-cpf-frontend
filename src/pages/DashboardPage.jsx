@@ -507,7 +507,7 @@ export default function DashboardPage() {
 
   // update lastUpdated + trigger popup when records change
   useEffect(() => {
-    if (!records.length) return
+    if (!records.length || comp === 'OVERVIEW') return
     setLastUpdated(Date.now())
     setStaleSeconds(0)
     getPHDiagram(comp).then(r => setPhData(r.data)).catch(() => {})
