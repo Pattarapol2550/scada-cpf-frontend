@@ -1,13 +1,21 @@
-import { testNodes } from '../../../config/monitor/lineDuckLayout.js'
+import { nodes, sectionLabels } from '../../../config/monitor/lineDuckLayout.js'
 import SchematicSymbol from '../symbols/SchematicSymbol.jsx'
+import SectionLabel from '../SectionLabel.jsx'
 
-/**
- * Equipment symbol layer. Step 4: testNodes only. Step 5: full nodes array.
- */
-export default function SymbolsLayer({ nodes = testNodes }) {
+/** Equipment symbol layer — all layout nodes + section headings. */
+export default function SymbolsLayer({ nodeList = nodes }) {
   return (
     <g className="symbols-layer">
-      {nodes.map(node => (
+      {sectionLabels.map(sec => (
+        <SectionLabel
+          key={sec.id}
+          x={sec.x}
+          y={sec.y}
+          text={sec.text}
+          color={sec.color}
+        />
+      ))}
+      {nodeList.map(node => (
         <SchematicSymbol
           key={node.id}
           type={node.type}
