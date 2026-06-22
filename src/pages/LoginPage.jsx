@@ -77,7 +77,7 @@ export default function LoginPage() {
     try {
       const res = await authLogin({ identifier: identifier.trim(), password })
       login(res.data?.user)
-      navigate('/dashboard')
+      navigate('/overview')
     } catch (err) {
       if (err?.response?.status === 429)
         setError('พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่')
