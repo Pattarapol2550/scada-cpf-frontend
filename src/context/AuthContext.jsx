@@ -7,7 +7,7 @@
  * → ProtectedRoute redirect กลับ /login ตัด flow Google ทิ้ง
  */
 import { createContext, useContext, useEffect, useState } from 'react'
-import { authMe } from '../services/api'
+import { authMe, authLogout } from '../services/api'
 
 const AuthContext = createContext()
 
@@ -57,6 +57,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     sessionStorage.removeItem('scada-user')
     setUser(null)
+    authLogout().catch(() => {})
   }
 
   return (
