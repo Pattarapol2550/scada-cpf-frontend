@@ -4,11 +4,18 @@
  */
 import Navbar from '../components/layout/Navbar'
 import LineStatusBar from '../components/monitor/LineStatusBar'
+import MockScenarioBar from '../components/monitor/MockScenarioBar'
 import MonitorCanvas from '../components/monitor/MonitorCanvas'
 import { useMonitorFleet } from '../hooks/useMonitorFleet'
 
 export default function DevelopPage() {
-  const { compressors, lineStatus } = useMonitorFleet()
+  const {
+    compressors,
+    lineStatus,
+    scenarioKey,
+    setScenarioKey,
+    isMock,
+  } = useMonitorFleet()
 
   return (
     <div style={{
@@ -25,6 +32,11 @@ export default function DevelopPage() {
         padding: '12px 16px 16px',
         minHeight: 0,
       }}>
+        <MockScenarioBar
+          scenarioKey={scenarioKey}
+          setScenarioKey={setScenarioKey}
+          isMock={isMock}
+        />
         <LineStatusBar lineStatus={lineStatus} />
         <MonitorCanvas compressors={compressors} />
       </main>
