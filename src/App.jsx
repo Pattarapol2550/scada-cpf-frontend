@@ -12,7 +12,7 @@ import PHDiagramPage       from './pages/PHDiagramPage'
 import CalculatorPage      from './pages/CalculatorPage'
 import DevelopPage         from './pages/DevelopPage'
 import SettingsPage       from './pages/SettingsPage'
-import OverviewPage from './pages/OverviewPage'
+
 
 export default function App() {
   return (
