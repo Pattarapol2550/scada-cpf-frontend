@@ -1,4 +1,5 @@
 import { VIEWBOX } from '../../config/monitor/schematicTheme.js'
+import SymbolsLayer from './layers/SymbolsLayer.jsx'
 
 /**
  * SVG root for synoptic diagram. Layers added in later steps.
@@ -59,6 +60,8 @@ export default function MonitorCanvas() {
         strokeWidth="1"
         rx="4"
       />
+
+      <SymbolsLayer />
     </svg>
   )
 }
