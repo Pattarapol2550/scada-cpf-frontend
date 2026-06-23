@@ -397,7 +397,7 @@ export default function DashboardPage() {
                     <div className="cop-scroll" style={{ maxWidth: '100%' }} ref={copScrollRef}>
                       <div style={{ position: 'relative', height: 220, width: Math.max(rows.length * 30, copPanelW || 1) }}>
                         <Line
-                          key={`${rows.length}-${copPanelW}`}
+                          key={`cop-${copPanelW}`}
                           data={{ labels, datasets: [mkDs('COP', diags.map(d => num(d.cop)), '#3fb950')] }}
                           width={Math.max(rows.length * 30, copPanelW || 1)}
                           height={220}
@@ -458,7 +458,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="cop-scroll" ref={ref}>
                       <div style={{ position: 'relative', height: 160, width: secW }}>
-                        <Line key={`${rows.length}-${secPanelW}`} width={secW} height={160}
+                        <Line key={`sec-${secPanelW}`} width={secW} height={160}
                           data={{ labels, datasets }}
                           options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: unit, color: '#8b949e', font: { size: 9 } } } } }} />
                       </div>
