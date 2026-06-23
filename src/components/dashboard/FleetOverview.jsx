@@ -126,7 +126,7 @@ export default function FleetOverview({ onSelectComp }) {
           <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}>
             <Bar
               data={{ labels: shortLabels, datasets: [{ label: 'COP', data: copValues, backgroundColor: copValues.map(v => v === null ? '#888' : v >= 1.5 ? '#378add' : '#e24b4a'), borderRadius: 4, barPercentage: 0.65 }] }}
-              options={barOpts(1.5, 2.5, '', textColor, gridColor)}
+              options={barOpts(1.5, Math.max(3, ...copValues.filter(Boolean)) * 1.15, '', textColor, gridColor)}
             />
           </div>
         </div>
