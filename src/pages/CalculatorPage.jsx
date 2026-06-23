@@ -14,9 +14,53 @@
  *  4. Backend: เพิ่ม /api/calculate และ /api/calculate_two ใน main.py (ดูไฟล์ main.py ที่แก้แล้ว)
  */
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Navbar from '../components/layout/Navbar'
-import api from '../services/api'   // axios instance ที่มี JWT interceptor อยู่แล้ว
+import api from '../services/api'
+import { Scatter } from 'react-chartjs-2'
+import {
+  Chart as ChartJS, LinearScale, LogarithmicScale,
+  PointElement, LineElement, Tooltip, Legend,
+} from 'chart.js'
+
+ChartJS.register(LinearScale, LogarithmicScale, PointElement, LineElement, Tooltip, Legend)
+
+// ─── Local cycle builders (reshape BE response → chart format) ────────────────
+// ไม่มี thermodynamics — แค่ map field จาก API response ที่ backend คำนวณมาแล้ว
+
+function buildCycleFromSingle(res) {
+  const { enthalpy, inputs, modes, saturation } = res
+  const pL = inputs.P_low_kPa  / 1000   // MPa
+  const pH = inputs.P_high_kPa / 1000
+  // h4 = h3 (isenthalpic expansion valve) — backend อาจไม่ส่ง h4 มาแยก
+  const h4 = enthalpy.h4 ?? enthalpy.h3
+  return {
+    point1:  { h: enthalpy.h1,  p: pL, label: '1 — Comp. inlet',  t_c: modes?.st_used  ?? null },
+    point2:  { h: enthalpy.h2,  p: pH, label: '2 — Comp. outlet', t_c: modes?.dt_used  ?? null },
+    point2s: { h: enthalpy.h2s, p: pH, label: '2s — Isentropic'                                },
+    point3:  { h: enthalpy.h3,  p: pH, label: '3 — Cond. outlet', t_c: saturation?.T_cond ?? null },
+    point4:  { h: h4,           p: pL, label: '4 — Evap. inlet'                                },
+    isentropic_efficiency: res.performance?.eta_isentropic != null
+      ? res.performance.eta_isentropic / 100 : null,
+  }
+}
+
+function buildCycleFromTwo(res) {
+  const { enthalpy, pressures } = res
+  const pL = pressures.P_low_kPa  / 1000
+  const pI = pressures.P_int_kPa  / 1000
+  const pH = pressures.P_high_kPa / 1000
+  return {
+    point1: { h: enthalpy.h1, p: pL, label: '1 — Booster inlet'    },
+    point2: { h: enthalpy.h2, p: pI, label: '2 — Booster outlet'   },
+    point3: { h: enthalpy.h3, p: pI, label: '3 — Inter tank exit'  },
+    point4: { h: enthalpy.h4, p: pH, label: '4 — High comp outlet' },
+    point5: { h: enthalpy.h5, p: pH, label: '5 — Cond. outlet'     },
+    point6: { h: enthalpy.h6, p: pI, label: '6 — EXV→inter'        },
+    point7: { h: enthalpy.h7, p: pL, label: '7 — EXV→evap'         },
+    isentropic_efficiency: null,
+  }
+}
 
 const fmt = (v, d = 2) => (v != null && !isNaN(Number(v)) ? Number(v).toFixed(d) : '—')
 
@@ -139,11 +183,194 @@ const g3  = { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, margi
 const g2  = { display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }
 const g3p = { display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:14 }
 
+// ─── Saturation dome cache (fetch จาก backend ครั้งเดียว) ────────────────────
+let _domeCache = null
+
+async function fetchDome() {
+  if (_domeCache) return _domeCache
+  try {
+    const res = await api.get('/api/ph-diagram/COMP-01')
+    _domeCache = res.data?.saturation_dome ?? null
+  } catch { _domeCache = null }
+  return _domeCache
+}
+
+// ─── PH Mini Chart ───────────────────────────────────────────────────────────
+
+/**
+ * PHMiniChart — รับ cycle object จาก buildCycleFromSingle/Two
+ * แสดง P-H diagram แบบ inline ใต้ผลการคำนวณ
+ * isTwo = true → แสดง path 7 จุดของ two-stage cycle
+ */
+function PHMiniChart({ cycle, dome, isTwo = false }) {
+  const chartRef = useRef(null)
+
+  // cycle points สำหรับ single-stage: 1→2→3→4→1
+  // two-stage: 1→2→3→4→5→6→7→1 (low side: 1→2→3→6→7→1, high side: 3→4→5→6)
+  const cyclePoints = isTwo
+    ? [cycle.point1, cycle.point2, cycle.point3, cycle.point4,
+       cycle.point5, cycle.point6, cycle.point7, cycle.point1].filter(Boolean)
+    : [cycle.point1, cycle.point2, cycle.point3, cycle.point4, cycle.point1].filter(Boolean)
+
+  // x-range: pad 15% รอบค่า h ทั้งหมด
+  const allH = cyclePoints.map(p => p.h).filter(v => v != null && !isNaN(v) && v !== 0)
+  const hMin = Math.min(...allH), hMax = Math.max(...allH)
+  const pad  = (hMax - hMin) * 0.18
+  const xMin = Math.floor(hMin - pad)
+  const xMax = Math.ceil(hMax + pad)
+
+  // y-range: focus บน operating cycle (ไม่ใช้ full dome ทั้งหมด — จะบีบ cycle ให้เล็ก)
+  const allP = cyclePoints.map(p => p.p).filter(v => v != null && !isNaN(v) && v > 0)
+  const pMin = Math.min(...allP), pMax = Math.max(...allP)
+  const yMin = +(pMin * 0.55).toFixed(3)  // ต่ำกว่า P_low 45%
+  const yMax = +(pMax * 3.5).toFixed(1)   // สูงกว่า P_high 3.5× เพื่อให้ dome ยังมองเห็น
+
+  const datasets = [
+    {
+      label: 'Sat. liquid',
+      data: (dome?.liquid ?? []).map(p => ({ x: p.h, y: p.p })),
+      borderColor: '#39c5cf', backgroundColor: 'rgba(57,197,207,0.06)',
+      borderWidth: 1.5, showLine: true, tension: 0.3, pointRadius: 0, fill: false,
+    },
+    {
+      label: 'Sat. vapour',
+      data: (dome?.vapour ?? []).map(p => ({ x: p.h, y: p.p })),
+      borderColor: '#39c5cf', backgroundColor: 'transparent',
+      borderWidth: 1.5, showLine: true, tension: 0.3, pointRadius: 0,
+    },
+    {
+      label: 'Cycle',
+      data: cyclePoints.map(p => ({ x: p.h, y: p.p })),
+      borderColor: '#f0883e', backgroundColor: '#f0883e',
+      borderWidth: 2.5, showLine: true, tension: 0,
+      // จุด 1 และ 2 ใหญ่กว่า เพราะอยู่ชิดหรือเลยขอบ dome
+      pointRadius: cyclePoints.map((_, i) => {
+        if (i >= cyclePoints.length - 1) return 0  // closing point
+        return (i === 0 || i === 1) ? 7 : 5
+      }),
+      pointBackgroundColor: cyclePoints.map((_, i) =>
+        (i === 0 || i === 1) ? '#fff' : '#f0883e'
+      ),
+      pointBorderColor: '#f0883e', pointBorderWidth: 2,
+    },
+  ]
+
+  // isentropic line (2s point) — single-stage only
+  if (!isTwo && cycle.point2s && cycle.point1) {
+    datasets.push({
+      label: 'Isentropic',
+      data: [
+        { x: cycle.point1.h, y: cycle.point1.p },
+        { x: cycle.point2s.h, y: cycle.point2s.p },
+      ],
+      borderColor: 'rgba(240,136,62,0.5)',
+      borderWidth: 1.5,
+      showLine: true, pointRadius: 0,
+    })
+  }
+
+  const options = {
+    responsive: true, maintainAspectRatio: false,
+    animation: false,
+    scales: {
+      x: {
+        type: 'linear', min: xMin, max: xMax,
+        title: { display: true, text: 'h  [kJ/kg]', color: 'var(--text-3)', font: { size: 11 } },
+        grid:  { color: 'rgba(139,148,158,0.1)' },
+        ticks: { color: 'var(--text-3)', font: { size: 10 } },
+      },
+      y: {
+        type: 'logarithmic',
+        min: yMin, max: yMax,
+        title: { display: true, text: 'P  [MPa]', color: 'var(--text-3)', font: { size: 11 } },
+        grid:  { color: 'rgba(139,148,158,0.1)' },
+        ticks: { color: 'var(--text-3)', font: { size: 10 },
+          callback: v => {
+            const nice = [0.1, 0.2, 0.3, 0.5, 1, 1.5, 2, 3, 5, 7, 10]
+            return nice.some(n => Math.abs(v - n) / n < 0.05) ? v.toFixed(v < 1 ? 2 : 1) : ''
+          },
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        labels: { color: 'var(--text-2)', font: { size: 11 }, boxWidth: 12, padding: 10 },
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const pt = cyclePoints[ctx.dataIndex]
+            const base = `h=${ctx.parsed.x.toFixed(1)} kJ/kg  P=${ctx.parsed.y.toFixed(3)} MPa`
+            return pt?.label ? `${pt.label}  |  ${base}` : base
+          },
+        },
+      },
+    },
+  }
+
+  // Point labels วาดบน canvas
+  const pointLabelPlugin = {
+    id: 'pointLabels',
+    afterDraw(chart) {
+      const meta = chart.getDatasetMeta(2)
+      if (!meta?.data) return
+      const ctx2 = chart.ctx
+      ctx2.save()
+      ctx2.font = '10px JetBrains Mono, monospace'
+      ctx2.fillStyle = '#f0883e'
+      ctx2.textAlign = 'center'
+      meta.data.forEach((el, i) => {
+        const pt = cyclePoints[i]
+        if (!pt || i >= cyclePoints.length - 1) return
+        const num = i + 1
+        ctx2.fillText(num, el.x, el.y - 10)
+      })
+      ctx2.restore()
+    },
+  }
+
+  return (
+    <div style={{ background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:10, overflow:'hidden', marginBottom:16 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:9, padding:'10px 14px', borderBottom:'1px solid var(--border)', background:'var(--bg2)' }}>
+        <span style={{ fontFamily:'JetBrains Mono, monospace', fontSize:10, fontWeight:700, background:'var(--cyan)', color:'#0d1117', width:20, height:20, borderRadius:4, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>PH</span>
+        <span style={{ fontSize:13, fontWeight:500 }}>P-H Diagram</span>
+        <span style={{ marginLeft:'auto', fontSize:10, color:'var(--text-3)', fontFamily:'JetBrains Mono, monospace' }}>คำนวณจาก NH₃ table (client-side)</span>
+      </div>
+      <div style={{ padding:16 }}>
+        <div style={{ height: 300 }}>
+          <Scatter ref={chartRef} data={{ datasets }} options={options} plugins={[pointLabelPlugin]} />
+        </div>
+        {/* Cycle point cards */}
+        <div style={{ display:'grid', gridTemplateColumns:`repeat(${isTwo ? 4 : 4}, 1fr)`, gap:8, marginTop:12 }}>
+          {cyclePoints.slice(0, -1).map((pt, i) => pt && (
+            <div key={i} style={{ background:'var(--bg0)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 10px' }}>
+              <div style={{ fontSize:9, fontWeight:700, color:'#f0883e', marginBottom:4, letterSpacing:'0.05em' }}>Point {i+1}</div>
+              <div style={{ fontSize:10, color:'var(--text-3)', marginBottom:2, lineHeight:1.3 }}>{pt.label}</div>
+              <div style={{ fontFamily:'JetBrains Mono, monospace', fontSize:11, color:'var(--text-1)' }}>h = {pt.h?.toFixed(1)} kJ/kg</div>
+              <div style={{ fontFamily:'JetBrains Mono, monospace', fontSize:11, color:'var(--text-1)' }}>P = {pt.p?.toFixed(3)} MPa</div>
+              {pt.t_c != null && <div style={{ fontFamily:'JetBrains Mono, monospace', fontSize:11, color:'var(--text-2)' }}>T = {Number(pt.t_c).toFixed(1)} °C</div>}
+            </div>
+          ))}
+        </div>
+        {cycle.isentropic_efficiency != null && (
+          <div style={{ marginTop:10, fontSize:11, color:'var(--text-2)', fontFamily:'JetBrains Mono, monospace' }}>
+            Isentropic efficiency:&nbsp;
+            <span style={{ color:'var(--cyan)', fontWeight:600 }}>
+              {(cycle.isentropic_efficiency * 100).toFixed(1)} %
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Single-Stage ─────────────────────────────────────────────────────────────
 
 function SingleStage() {
   const [f, setF] = useState({ cur:'', sp:'', dp:'', st:'', dt:'', lt:'' })
   const [res, setRes] = useState(null)
+  const [dome, setDome] = useState(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(null)
   const set = k => v => setF(p => ({ ...p, [k]:v }))
@@ -152,15 +379,19 @@ function SingleStage() {
     if (!f.cur || !f.sp || !f.dp) { setErr('กรุณากรอก I, SP และ DP'); return }
     setErr(null); setLoading(true)
     try {
-      const { data } = await api.post('/api/calculate', {
-        current:     +f.cur,
-        sp:          +f.sp,
-        dp:          +f.dp,
-        st:          f.st !== '' ? +f.st : null,
-        dt:          f.dt !== '' ? +f.dt : null,
-        liquid_temp: f.lt !== '' ? +f.lt : null,
-      })
+      const [{ data }, d] = await Promise.all([
+        api.post('/api/calculate', {
+          current:     +f.cur,
+          sp:          +f.sp,
+          dp:          +f.dp,
+          st:          f.st !== '' ? +f.st : null,
+          dt:          f.dt !== '' ? +f.dt : null,
+          liquid_temp: f.lt !== '' ? +f.lt : null,
+        }),
+        fetchDome(),
+      ])
       setRes(data)
+      setDome(d)
     } catch (e) {
       setErr('เชื่อมต่อ backend ไม่ได้: ' + (e?.response?.data?.detail || e.message))
     } finally { setLoading(false) }
@@ -211,6 +442,8 @@ function SingleStage() {
 
         {res.warnings.map((w,i) => <WarnBox key={i} level={w.level} msg={w.msg} />)}
 
+        <PHMiniChart cycle={buildCycleFromSingle(res)} dome={dome} />
+
         <DetailTable sections={[
           { title:'Conditions', rows:[
             { label:'ST used', value:`${fmt(m.st_used,1)} °C (${m.sh_mode})` },
@@ -248,6 +481,7 @@ function SingleStage() {
 function TwoStage() {
   const [f, setF] = useState({ i_boost:'', sp:'', st:'', dt_b:'', t_int:'-7', i_high:'', dp:'', dt_h:'', lt:'' })
   const [res, setRes] = useState(null)
+  const [dome, setDome] = useState(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(null)
   const set = k => v => setF(p => ({ ...p, [k]:v }))
@@ -256,18 +490,22 @@ function TwoStage() {
     if (!f.i_boost || !f.sp || !f.i_high || !f.dp || !f.t_int) { setErr('กรุณากรอก I_booster, SP, I_high, DP, T_int'); return }
     setErr(null); setLoading(true)
     try {
-      const { data } = await api.post('/api/calculate_two', {
-        i_booster:   +f.i_boost,
-        sp:          +f.sp,
-        st:          f.st   !== '' ? +f.st   : null,
-        dt_booster:  f.dt_b !== '' ? +f.dt_b : null,
-        t_int:       +f.t_int,
-        i_high:      +f.i_high,
-        dp:          +f.dp,
-        dt_high:     f.dt_h !== '' ? +f.dt_h : null,
-        liquid_temp: f.lt   !== '' ? +f.lt   : null,
-      })
+      const [{ data }, d] = await Promise.all([
+        api.post('/api/calculate_two', {
+          i_booster:   +f.i_boost,
+          sp:          +f.sp,
+          st:          f.st   !== '' ? +f.st   : null,
+          dt_booster:  f.dt_b !== '' ? +f.dt_b : null,
+          t_int:       +f.t_int,
+          i_high:      +f.i_high,
+          dp:          +f.dp,
+          dt_high:     f.dt_h !== '' ? +f.dt_h : null,
+          liquid_temp: f.lt   !== '' ? +f.lt   : null,
+        }),
+        fetchDome(),
+      ])
       setRes(data)
+      setDome(d)
     } catch (e) {
       setErr('เชื่อมต่อ backend ไม่ได้: ' + (e?.response?.data?.detail || e.message))
     } finally { setLoading(false) }
@@ -357,6 +595,8 @@ function TwoStage() {
         </div>
 
         {res.warnings.map((w,i) => <WarnBox key={i} level={w.level} msg={w.msg} />)}
+
+        <PHMiniChart cycle={buildCycleFromTwo(res)} dome={dome} isTwo />
 
         <DetailTable sections={[
           { title:'Pressures', rows:[

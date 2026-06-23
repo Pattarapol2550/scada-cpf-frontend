@@ -1,5 +1,16 @@
 {
-  "cookies": [],
+  "cookies": [
+    {
+      "name": "access_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwidXNlcm5hbWUiOiJhZG1pbjMiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3ODIxOTc3MjYsImV4cCI6MTc4MjIyNjUyNn0.nErkgf3WFgX5ANox1nZ3H5QIPRz8QsSu3XHYoiYRtng",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1782226526.615377,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    }
+  ],
   "origins": [
     {
       "origin": "http://localhost:5173",
@@ -7,10 +18,6 @@
         {
           "name": "scada-theme",
           "value": "dark"
-        },
-        {
-          "name": "scada-token",
-          "value": "dev-token"
         }
       ]
     }

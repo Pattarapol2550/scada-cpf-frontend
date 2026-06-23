@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Navbar from '../components/layout/Navbar'
-import { getPHDiagram } from '../services/api'
+import { getMetrics, getPHDiagram } from '../services/api'
+import { cyclePoints, getPHXRange, normalizePHCycle } from '../utils/phDiagram'
 import { Scatter } from 'react-chartjs-2'
 import { Chart as ChartJS, LinearScale, LogarithmicScale, PointElement, LineElement, Tooltip } from 'chart.js'
 
@@ -8,21 +9,20 @@ ChartJS.register(LinearScale, LogarithmicScale, PointElement, LineElement, Toolt
 
 const COMPRESSORS = ['COMP-01','COMP-02','COMP-03','COMP-04','COMP-05','COMP-06','COMP-07']
 
-function toLocalDT(date) {
+const CYCLE_POINT_LABELS = ['1: Evap outlet', '2: Comp outlet', '3: Cond outlet', '4: Exp inlet']
+
+// Format ISO/Date to local Thai time (UTC+7) string
+function fmtLocalDT(value) {
+  if (!value) return '--'
+  const d = value instanceof Date ? value : new Date(value)
   const p = n => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`
+  const u = new Date(d.getTime() + 7 * 3600_000)
+  return `${u.getUTCFullYear()}-${p(u.getUTCMonth()+1)}-${p(u.getUTCDate())}  ${p(u.getUTCHours())}:${p(u.getUTCMinutes())}:${p(u.getUTCSeconds())}`
 }
 
-function getXRange(cycle) {
-  if (!cycle) return { min: 150, max: 1800 }
-  const pts = [cycle.point1, cycle.point2, cycle.point3, cycle.point4].filter(Boolean)
-  if (!pts.length) return { min: 150, max: 1800 }
-  const hs = pts.map(p => p.h)
-  const pad = (Math.max(...hs) - Math.min(...hs)) * 0.18
-  return {
-    min: Math.floor(Math.min(...hs) - pad),
-    max: Math.ceil(Math.max(...hs) + pad),
-  }
+function toLocalDTInput(date) {
+  const p = n => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`
 }
 
 export default function PHDiagramPage() {
@@ -34,7 +34,7 @@ export default function PHDiagramPage() {
 
   // "latest" mode vs. เจาะเวลาเอง
   const [useTimestamp, setUseTimestamp] = useState(false)
-  const [timestamp, setTimestamp]       = useState(() => toLocalDT(new Date()))
+  const [timestamp, setTimestamp]       = useState(() => toLocalDTInput(new Date()))
 
   const chartRef = useRef(null)
 
@@ -45,7 +45,20 @@ export default function PHDiagramPage() {
     try {
       const params = useTimestamp ? { timestamp: new Date(timestamp).toISOString() } : {}
       const res = await getPHDiagram(compId, params)
-      setData(res.data)
+      const metricParams = res.data?.timestamp
+        ? {
+            start: new Date(new Date(res.data.timestamp).getTime() - 2000).toISOString(),
+            end: new Date(new Date(res.data.timestamp).getTime() + 2000).toISOString(),
+            limit: 1,
+          }
+        : { limit: 1 }
+      const metricRes = await getMetrics(compId, metricParams).catch(() => null)
+      const metric = metricRes?.data?.find?.(r => String(r._id) === String(res.data?.record_id)) ?? metricRes?.data?.[0]
+      setData({
+        ...res.data,
+        inputs_snapshot: res.data?.inputs_snapshot ?? metric?.inputs_snapshot,
+        diagnosis: res.data?.diagnosis ?? metric?.diagnosis,
+      })
     } catch (err) {
       const detail = err?.response?.data?.detail
       setError(detail || 'ไม่สามารถโหลดข้อมูลได้')
@@ -57,31 +70,32 @@ export default function PHDiagramPage() {
   // ส่ง comp เข้า load ตรงๆ เพื่อให้ได้ค่าล่าสุดเสมอ (ไม่ติด stale closure)
   useEffect(() => { load(comp) }, [comp, useTimestamp]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const cycle  = data?.cycle
+  const cycle  = normalizePHCycle(data)
   const dome   = data?.saturation_dome
-  const xRange = getXRange(cycle)
+  const xRange = getPHXRange(cycle)
+  const points = cyclePoints(cycle)
+  const closedPoints = cyclePoints(cycle, true)
 
   const chartData = data ? {
     datasets: [
       {
         label: 'Sat. liquid',
-        data: dome.liquid.map(p => ({ x: p.h, y: p.p })),
+        data: (dome?.liquid ?? []).map(p => ({ x: p.h, y: p.p })),
         borderColor: '#39c5cf', backgroundColor: 'rgba(57,197,207,0.06)',
         borderWidth: 1.5, showLine: true, tension: 0.4, pointRadius: 0, fill: true,
       },
       {
         label: 'Sat. vapour',
-        data: dome.vapour.map(p => ({ x: p.h, y: p.p })),
+        data: (dome?.vapour ?? []).map(p => ({ x: p.h, y: p.p })),
         borderColor: '#39c5cf', backgroundColor: 'transparent',
         borderWidth: 1.5, showLine: true, tension: 0.4, pointRadius: 0,
       },
       {
         label: 'Cycle',
-        data: [cycle?.point1, cycle?.point2, cycle?.point3, cycle?.point4, cycle?.point1]
-          .filter(Boolean).map(p => ({ x: p.h, y: p.p })),
+        data: closedPoints.map(p => ({ x: p.h, y: p.p })),
         borderColor: '#f0883e', backgroundColor: '#f0883e',
         borderWidth: 2, showLine: true, tension: 0,
-        pointRadius: [6,6,6,6,0],
+        pointRadius: closedPoints.map((_, i) => i === closedPoints.length - 1 ? 0 : 6),
         pointBackgroundColor: '#f0883e',
         pointBorderColor: '#161b22', pointBorderWidth: 2,
       },
@@ -112,18 +126,6 @@ export default function PHDiagramPage() {
         accentVal:  [15,  120, 80],    // efficiency value
       }
 
-      // ── helper: format timestamp without locale (jsPDF ไม่รองรับ thai font)
-      const fmtTS = (isoStr) => {
-        if (!isoStr) return '--'
-        const d = new Date(isoStr)
-        const pad = n => String(n).padStart(2, '0')
-        // +7 manual
-        const utc = d.getTime() + 7 * 3600000
-        const local = new Date(utc)
-        return `${local.getUTCFullYear()}-${pad(local.getUTCMonth()+1)}-${pad(local.getUTCDate())}` +
-               `  ${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}:${pad(local.getUTCSeconds())}`
-      }
-
       // ── Header bar ────────────────────────────────────
       doc.setFillColor(...C.bg)
       doc.rect(0, 0, W, 20, 'F')
@@ -140,7 +142,7 @@ export default function PHDiagramPage() {
       doc.setTextColor(...C.label)
       doc.setFontSize(8)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Timestamp: ${fmtTS(data?.timestamp)}`, W - 12, 13, { align: 'right' })
+      doc.text(`Timestamp: ${fmtLocalDT(data?.timestamp)}`, W - 12, 13, { align: 'right' })
 
       // ── White body background ──────────────────────────
       doc.setFillColor(...C.white)
@@ -167,14 +169,14 @@ export default function PHDiagramPage() {
       doc.text('CYCLE POINTS', RX, RY + 4)
       RY += 8
 
-      const points = [
+      const pdfCyclePoints = [
         { label: 'Point 1  —  Evaporator outlet', pt: cycle.point1 },
         { label: 'Point 2  —  Compressor outlet', pt: cycle.point2 },
         { label: 'Point 3  —  Condenser outlet',  pt: cycle.point3 },
         { label: 'Point 4  —  Expansion inlet',   pt: cycle.point4 },
       ]
 
-      for (const { label, pt } of points) {
+      for (const { label, pt } of pdfCyclePoints) {
         if (!pt) continue
         // card outline
         doc.setDrawColor(...C.cardBorder)
@@ -272,10 +274,9 @@ export default function PHDiagramPage() {
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(...C.label)
       doc.text('Compressor Monitor  |  Ammonia Refrigeration Diagnostics', 12, H - 3)
-      const nowStr = fmtTS(new Date().toISOString())
-      doc.text(`Generated: ${nowStr}`, W - 12, H - 3, { align: 'right' })
+      doc.text(`Generated: ${fmtLocalDT(new Date())}`, W - 12, H - 3, { align: 'right' })
 
-      const fileName = `ph_diagram_${comp}_${fmtTS(data?.timestamp || new Date().toISOString()).slice(0,10)}.pdf`
+      const fileName = `ph_diagram_${comp}_${fmtLocalDT(data?.timestamp || new Date()).slice(0,10)}.pdf`
       doc.save(fileName)
     } catch (e) {
       console.error('PDF export failed', e)
@@ -375,14 +376,7 @@ export default function PHDiagramPage() {
                 {useTimestamp ? '📌 ข้อมูล ณ' : 'ข้อมูลล่าสุด'}
               </span>
               <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-1)', fontWeight: 600 }}>
-                {data.timestamp
-                  ? (() => {
-                      const d = new Date(data.timestamp)
-                      const p = n => String(n).padStart(2,'0')
-                      const u = new Date(d.getTime() + 7*3600000)
-                      return `${u.getUTCFullYear()}-${p(u.getUTCMonth()+1)}-${p(u.getUTCDate())}  ${p(u.getUTCHours())}:${p(u.getUTCMinutes())}:${p(u.getUTCSeconds())}`
-                    })()
-                  : '--'}
+                {fmtLocalDT(data.timestamp)}
               </span>
             </div>
           )}
@@ -440,9 +434,8 @@ export default function PHDiagramPage() {
                       backgroundColor: '#1c2333', borderColor: '#30363d', borderWidth: 1, bodyColor: '#e6edf3',
                       callbacks: {
                         label: ctx => {
-                          if (ctx.datasetIndex === 2 && ctx.dataIndex < 4) {
-                            const pts = ['1: Evap outlet','2: Comp outlet','3: Cond outlet','4: Exp inlet']
-                            return `${pts[ctx.dataIndex]} — h: ${ctx.raw.x} kJ/kg  P: ${ctx.raw.y.toFixed(3)} MPa`
+                          if (ctx.datasetIndex === 2 && ctx.dataIndex < points.length) {
+                            return `${CYCLE_POINT_LABELS[ctx.dataIndex] ?? `Point ${ctx.dataIndex + 1}`} — h: ${ctx.raw.x} kJ/kg  P: ${ctx.raw.y.toFixed(3)} MPa`
                           }
                           return `h: ${ctx.raw.x}  P: ${Number(ctx.raw.y).toFixed(3)} MPa`
                         }
@@ -471,7 +464,7 @@ export default function PHDiagramPage() {
         {/* ── Cycle values ──────────────────────────── */}
         {cycle && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-            {[cycle.point1, cycle.point2, cycle.point3, cycle.point4].map((pt, i) => pt && (
+            {points.map((pt, i) => pt && (
               <div key={i} className="panel" style={{ padding: '12px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#f0883e', marginBottom: 6, letterSpacing: '0.06em' }}>Point {i+1}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 2 }}>{pt.label}</div>

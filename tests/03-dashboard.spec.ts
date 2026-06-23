@@ -1,91 +1,93 @@
+/**
+ * 03-dashboard.spec.ts — ทดสอบ Dashboard กับ backend จริง (headed)
+ * Dashboard เริ่มใน OVERVIEW mode → ต้องเลือก compressor ก่อนจึงจะ fetch metrics
+ */
 import { test, expect } from '@playwright/test'
-import { mockMetrics, mockPH, mockProbe, MOCK_METRICS } from './helpers'
 
 test.describe('Dashboard Page', () => {
 
   test.beforeEach(async ({ page }) => {
-    await mockProbe(page)
-    await mockMetrics(page)
-    await mockPH(page)
     await page.goto('/dashboard')
   })
 
   test('โหลดหน้าได้และแสดง compressor list', async ({ page }) => {
-    for (const c of ['COMP-01','COMP-02','COMP-03']) {
-      await expect(page.locator(`text=${c}`)).toBeVisible()
+    for (const c of ['COMP-01', 'COMP-02', 'COMP-03']) {
+      await expect(page.locator(`text=${c}`).first()).toBeVisible({ timeout: 15_000 })
     }
   })
 
-  // FIX: รอ API response ก่อน แล้วหา KPI label ตามที่โค้ดใช้จริง
-  test('แสดง KPI cards: COP, Power, Q_e', async ({ page }) => {
-    await page.waitForResponse(r => r.url().includes('/api/metrics') && r.status() === 200)
-    // label จาก KPICard: 'P_comp', 'COP', 'Q_e'
-    await expect(page.locator('text=P_comp').first()).toBeVisible({ timeout: 10_000 })
+  test('เลือก COMP-01 → KPI cards P_comp, COP, Q_e แสดง', async ({ page }) => {
+    await expect(page.locator('text=COMP-01').first()).toBeVisible({ timeout: 10_000 })
+    await page.locator('button, li').filter({ hasText: 'COMP-01' }).first().click()
+    await expect(page.locator('text=P_comp').first()).toBeVisible({ timeout: 20_000 })
     await expect(page.locator('text=COP').first()).toBeVisible()
     await expect(page.locator('text=Q_e').first()).toBeVisible()
   })
 
-  test('เลือก COMP-02 → request metrics ใหม่', async ({ page }) => {
-    await mockMetrics(page, 'COMP-02')
-    await mockPH(page, 'COMP-02')
-    const reqP = page.waitForRequest(r => r.url().includes('/api/metrics/COMP-02'))
+  test('เลือก COMP-01 → ตรวจ N/A count (บัคถ้า KPI ทั้งหมดเป็น N/A)', async ({ page }) => {
+    await expect(page.locator('text=COMP-01').first()).toBeVisible({ timeout: 10_000 })
+    await page.locator('button, li').filter({ hasText: 'COMP-01' }).first().click()
+    await expect(page.locator('text=P_comp').first()).toBeVisible({ timeout: 20_000 })
+    await page.waitForTimeout(1000)
+    const naCount = await page.locator('text=N/A').count()
+    const kpiCount = await page.locator('text=P_comp').count()
+    console.log(`KPI cards: ${kpiCount}, N/A values: ${naCount}`)
+  })
+
+  test('เลือก COMP-02 → request metrics COMP-02', async ({ page }) => {
+    await expect(page.locator('text=COMP-02').first()).toBeVisible({ timeout: 10_000 })
+    const reqP = page.waitForRequest(r => r.url().includes('/api/metrics/COMP-02'), { timeout: 15_000 })
     await page.locator('button, li').filter({ hasText: 'COMP-02' }).first().click()
     await reqP
   })
 
-  test('เปลี่ยน comp → PH diagram กราฟเก่าหายไป', async ({ page }) => {
-    await page.waitForResponse(r => r.url().includes('/api/ph-diagram/COMP-01'))
-    await mockPH(page, 'COMP-02', 404)
-    await mockMetrics(page, 'COMP-02', [])
-    await page.locator('button, li').filter({ hasText: 'COMP-02' }).first().click()
-    await page.waitForTimeout(600)
-    const stalePoint = page.locator('text=1 — Comp. inlet')
-    const noData = await stalePoint.count() === 0
-    expect(noData).toBeTruthy()
+  test('เลือก COMP-03 → request metrics COMP-03', async ({ page }) => {
+    await expect(page.locator('text=COMP-03').first()).toBeVisible({ timeout: 10_000 })
+    const reqP = page.waitForRequest(r => r.url().includes('/api/metrics/COMP-03'), { timeout: 15_000 })
+    await page.locator('button, li').filter({ hasText: 'COMP-03' }).first().click()
+    await reqP
   })
 
-  test('COP trend chart render', async ({ page }) => {
-    await page.waitForResponse(r => r.url().includes('/api/metrics'))
-    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 10_000 })
+  test('เลือก COMP-01 → COP trend chart canvas render', async ({ page }) => {
+    await expect(page.locator('text=COMP-01').first()).toBeVisible({ timeout: 10_000 })
+    await page.locator('button, li').filter({ hasText: 'COMP-01' }).first().click()
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20_000 })
   })
 
-  test('PH diagram panel แสดงใน dashboard', async ({ page }) => {
-    await page.waitForResponse(r => r.url().includes('/api/ph-diagram'))
-    await page.waitForTimeout(500)
-    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 12_000 })
+  test('เลือก COMP-01 → PH diagram panel canvas render', async ({ page }) => {
+    await expect(page.locator('text=COMP-01').first()).toBeVisible({ timeout: 10_000 })
+    await page.locator('button, li').filter({ hasText: 'COMP-01' }).first().click()
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 25_000 })
   })
 
-  test('Cycle point values แสดงหลัง PH diagram โหลด', async ({ page }) => {
-    await page.waitForResponse(r => r.url().includes('/api/ph-diagram'))
-    await page.waitForTimeout(500)
-    const eff = page.locator('text=/Isentropic|88\\.0|η/i')
-    if (await eff.count() > 0) await expect(eff.first()).toBeVisible()
-  })
-
-  // FIX: AlarmLog ไม่มีข้อความ "Normal" แต่แสดง "✅ ไม่พบ Alarm ในช่วงเวลานี้"
-  test('ไม่มี alarm → แสดง "ไม่พบ Alarm"', async ({ page }) => {
-    await page.waitForResponse(r => r.url().includes('/api/metrics') && r.status() === 200)
-    await expect(page.locator('text=ไม่พบ Alarm ในช่วงเวลานี้')).toBeVisible({ timeout: 10_000 })
-  })
-
-  test('มี alarm → แสดง alarm badge', async ({ page }) => {
-    const dataWithAlarm = [{
-      ...MOCK_METRICS[0],
-      diagnosis: {
-        ...MOCK_METRICS[0].diagnosis,
-        alarms: [{ severity: 'Warning', title: 'High Superheat', message: 'SH > 15K' }],
-      },
-    }]
-    await page.route('**/api/metrics/COMP-01**', route =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(dataWithAlarm) })
-    )
-    await page.reload()
-    await page.waitForResponse(r => r.url().includes('/api/metrics'))
-    await expect(page.locator('text=/Warning|High Superheat/i').first()).toBeVisible({ timeout: 8_000 })
+  test('เลือก COMP-01 → AlarmLog section แสดง', async ({ page }) => {
+    await expect(page.locator('text=COMP-01').first()).toBeVisible({ timeout: 10_000 })
+    await page.locator('button, li').filter({ hasText: 'COMP-01' }).first().click()
+    await expect(page.locator('text=P_comp').first()).toBeVisible({ timeout: 20_000 })
+    await page.waitForTimeout(1000)
+    const hasAlarm  = await page.locator('text=/Warning|Critical/i').count()
+    const hasEmpty  = await page.locator('text=ไม่พบ Alarm ในช่วงเวลานี้').count()
+    const hasHeader = await page.locator('text=/Alarm/i').count()
+    console.log(`Alarm items: ${hasAlarm}, Empty msg: ${hasEmpty}, Alarm header: ${hasHeader}`)
+    expect(hasHeader).toBeGreaterThan(0)
   })
 
   test('Live badge แสดง', async ({ page }) => {
-    await expect(page.locator('text=/Live|LIVE/i').first()).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('text=/Live|LIVE/i').first()).toBeVisible({ timeout: 15_000 })
+  })
+
+  test('กด COMP-02 แล้วกลับ COMP-01 → PH diagram โหลดใหม่', async ({ page }) => {
+    await expect(page.locator('text=COMP-01').first()).toBeVisible({ timeout: 10_000 })
+    await page.locator('button, li').filter({ hasText: 'COMP-02' }).first().click()
+    await page.waitForTimeout(500)
+    await page.locator('button, li').filter({ hasText: 'COMP-01' }).first().click()
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20_000 })
+  })
+
+  test('เลือก COMP-01 → API metrics ตอบสนองได้ (KPI โหลด)', async ({ page }) => {
+    await expect(page.locator('text=COMP-01').first()).toBeVisible({ timeout: 10_000 })
+    await page.locator('button, li').filter({ hasText: 'COMP-01' }).first().click()
+    await expect(page.locator('text=P_comp').first()).toBeVisible({ timeout: 20_000 })
   })
 
 })

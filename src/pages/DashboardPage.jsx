@@ -12,6 +12,7 @@ import { useMetrics } from '../hooks/useMetrics'
 import { useAuth } from '../context/AuthContext'
 import { getPHDiagram } from '../services/api'
 import { COMPRESSORS, toLocalDT, formatThaiTime, formatFull, num } from '../utils/format'
+import { cyclePoints, getPHXRange, normalizePHCycle } from '../utils/phDiagram'
 import { CHART_DEFAULTS, mkDs } from '../utils/chartConfig'
 import { KPI_MAP, loadKpiConfig, getKpiValue } from '../utils/kpiConfig'
 import { exportCSV, exportXLSX } from '../utils/exportUtils'
@@ -144,7 +145,7 @@ export default function DashboardPage() {
     setStaleSeconds(0)
     const snapComp = comp
     getPHDiagram(snapComp)
-      .then(r => { if (activeCompRef.current === snapComp) setPhData(r.data) })
+      .then(r => { if (activeCompRef.current === snapComp) setPhData({ ...r.data, inputs_snapshot: r.data?.inputs_snapshot ?? records[0]?.inputs_snapshot, diagnosis: r.data?.diagnosis ?? records[0]?.diagnosis }) })
       .catch(() => {})
     const alarms = records[0]?.diagnosis?.alarms || []
     if (alarms.length) {
@@ -220,27 +221,22 @@ export default function DashboardPage() {
     setSelectedIdx(idx)
     const snapComp = comp
     getPHDiagram(snapComp, { record_id: rec._id })
-      .then(r => { if (activeCompRef.current === snapComp) setPhData(r.data) })
+      .then(r => { if (activeCompRef.current === snapComp) setPhData({ ...r.data, inputs_snapshot: r.data?.inputs_snapshot ?? rec.inputs_snapshot, diagnosis: r.data?.diagnosis ?? rec.diagnosis }) })
       .catch(() => {})
     setTimeout(() => {
       if (reportRef.current) reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 150)
   }
 
-  const phXRange = (() => {
-    if (!phData?.cycle) return { min: 150, max: 1800 }
-    const pts = [phData.cycle.point1, phData.cycle.point2, phData.cycle.point3, phData.cycle.point4].filter(Boolean)
-    if (!pts.length) return { min: 150, max: 1800 }
-    const hs  = pts.map(p => p.h)
-    const pad = (Math.max(...hs) - Math.min(...hs)) * 0.15
-    return { min: Math.floor(Math.min(...hs) - pad), max: Math.ceil(Math.max(...hs) + pad) }
-  })()
+  const phCycle = normalizePHCycle(phData)
+  const phPoints = cyclePoints(phCycle, true)
+  const phXRange = getPHXRange(phCycle)
 
   const phChartData = phData ? {
     datasets: [
-      { label: 'Saturation liquid', data: phData.saturation_dome.liquid.map(p => ({ x: p.h, y: p.p })), borderColor: '#39c5cf', backgroundColor: 'rgba(57,197,207,0.06)', borderWidth: 1.5, showLine: true, tension: 0, pointRadius: 0, fill: true },
-      { label: 'Saturation vapour', data: phData.saturation_dome.vapour.map(p => ({ x: p.h, y: p.p })), borderColor: '#39c5cf', backgroundColor: 'transparent', borderWidth: 1.5, showLine: true, tension: 0, pointRadius: 0 },
-      { label: 'Cycle', data: phData.cycle ? [phData.cycle.point1, phData.cycle.point2, phData.cycle.point3, phData.cycle.point4, phData.cycle.point1].filter(Boolean).map(p => ({ x: p.h, y: p.p })) : [], borderColor: '#f0883e', backgroundColor: '#f0883e', borderWidth: 2, showLine: true, tension: 0, pointRadius: [5, 5, 5, 5, 0], pointBackgroundColor: '#f0883e', pointBorderColor: '#161b22', pointBorderWidth: 2 },
+      { label: 'Saturation liquid', data: (phData.saturation_dome?.liquid ?? []).map(p => ({ x: p.h, y: p.p })), borderColor: '#39c5cf', backgroundColor: 'rgba(57,197,207,0.06)', borderWidth: 1.5, showLine: true, tension: 0, pointRadius: 0, fill: true },
+      { label: 'Saturation vapour', data: (phData.saturation_dome?.vapour ?? []).map(p => ({ x: p.h, y: p.p })), borderColor: '#39c5cf', backgroundColor: 'transparent', borderWidth: 1.5, showLine: true, tension: 0, pointRadius: 0 },
+      { label: 'Cycle', data: phPoints.map(p => ({ x: p.h, y: p.p })), borderColor: '#f0883e', backgroundColor: '#f0883e', borderWidth: 2, showLine: true, tension: 0, pointRadius: phPoints.map((_, i) => i === phPoints.length - 1 ? 0 : 5), pointBackgroundColor: '#f0883e', pointBorderColor: '#161b22', pointBorderWidth: 2 },
     ],
   } : null
 
