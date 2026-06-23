@@ -42,3 +42,13 @@ export function lastNHours(hours) {
   const past = new Date(now - hours * 3_600_000)
   return { start: toLocalDT(past), end: toLocalDT(now) }
 }
+
+/** ISO string → full Thai datetime including seconds */
+export function formatFull(str) {
+  if (!str) return '--'
+  return new Date(str).toLocaleString('th-TH', {
+    timeZone: 'Asia/Bangkok', hour12: false,
+    day: '2-digit', month: 'short', year: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  })
+}

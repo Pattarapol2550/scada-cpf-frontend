@@ -1,0 +1,62 @@
+import StatusBadge from './StatusBadge'
+import { formatThaiTime } from '../../utils/format'
+
+function val(v, dec = 2, unit = '') {
+  return (v === null || v === undefined || v === '--') ? '--' : `${Number(v).toFixed(dec)}${unit ? ' ' + unit : ''}`
+}
+
+function warnColor(v, lo, hi, hasCrit) {
+  const n = Number(v); if (isNaN(n)) return 'var(--text-1)'
+  if (n < lo || n > hi) return hasCrit ? '#a32d2d' : '#854f0b'
+  return 'var(--text-1)'
+}
+
+export default function CompCard({ id, diag, ts, onClick }) {
+  const d = diag || {}
+  const alarms  = d.alarms || []
+  const hasCrit = alarms.some(a => a.severity === 'Critical')
+  const hasWarn = alarms.some(a => a.severity === 'Warning')
+  const noData  = !ts
+  const severity    = noData ? '--' : hasCrit ? 'Critical' : hasWarn ? 'Warning' : 'Normal'
+  const borderColor = hasCrit ? 'rgba(163,45,45,0.45)' : hasWarn ? 'rgba(133,79,11,0.4)' : 'var(--border)'
+
+  const metrics = [
+    ['COP',   val(d.cop, 2),              warnColor(d.cop, 1.5, 99, hasCrit)],
+    ['Power', val(d.power_kw, 1, 'kW'),   'var(--text-1)'],
+    ['Q_e',   val(d.q_e_kw, 1, 'kW'),     'var(--text-1)'],
+    ['SH',    val(d.superheat_suc, 1, 'K'), warnColor(d.superheat_suc, 2, 15, hasCrit)],
+    ['SC',    val(d.subcooling, 1, 'K'),   warnColor(d.subcooling, 2, 15, hasCrit)],
+    ['Pr',    val(d.pressure_ratio, 2),    warnColor(d.pressure_ratio, 0, 10, hasCrit)],
+  ]
+
+  return (
+    <div
+      onClick={() => onClick(id)}
+      style={{ background: 'var(--bg1)', border: `1px solid ${borderColor}`, borderRadius: 12, padding: '11px 12px', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg2)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'var(--bg1)'}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{id}</span>
+        <StatusBadge severity={severity} />
+      </div>
+      {metrics.map(([k, v, color]) => (
+        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: '1px solid var(--border)', fontSize: 11 }}>
+          <span style={{ color: 'var(--text-3)' }}>{k}</span>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, color }}>{v}</span>
+        </div>
+      ))}
+      {alarms.length > 0 && (
+        <div style={{ marginTop: 7 }}>
+          {alarms.slice(0, 2).map((a, i) => (
+            <div key={i} style={{ fontSize: 10, color: a.severity === 'Critical' ? '#a32d2d' : '#854f0b', background: a.severity === 'Critical' ? 'rgba(163,45,45,0.08)' : 'rgba(133,79,11,0.08)', borderRadius: 5, padding: '2px 6px', marginTop: 3 }}>
+              {a.title}
+            </div>
+          ))}
+        </div>
+      )}
+      {noData && <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'center', marginTop: 8 }}>ไม่มีข้อมูล</div>}
+      {ts && <div style={{ fontSize: 9, color: 'var(--text-3)', marginTop: 6, fontFamily: 'JetBrains Mono, monospace' }}>{formatThaiTime(ts)}</div>}
+    </div>
+  )
+}
