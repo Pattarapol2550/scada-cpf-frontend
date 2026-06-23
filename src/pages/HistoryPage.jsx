@@ -3,7 +3,7 @@ import Navbar from '../components/layout/Navbar'
 import { useMetrics } from '../hooks/useMetrics'
 import { COMPRESSORS, toLocalDT, formatThaiTime, num } from '../utils/format'
 import { exportCSV, exportXLSX } from '../utils/exportUtils'
-import { mkDs } from '../utils/chartConfig'
+import { CHART_DEFAULTS, CHART_TOOLTIP, mkDs } from '../utils/chartConfig'
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
   PointElement, LineElement, Tooltip, Legend,
@@ -16,15 +16,11 @@ const ROWS_PER_PAGE        = 50
 const AUTO_REFRESH_SECONDS = 120
 
 const CHART_OPT = {
-  responsive: true, maintainAspectRatio: false, animation: false,
+  ...CHART_DEFAULTS,
   elements: { point: { radius: 2 } },
   plugins: {
-    legend: { display: false },
-    tooltip: {
-      mode: 'index', intersect: false,
-      backgroundColor: '#1c2333', borderColor: '#30363d', borderWidth: 1,
-      titleColor: '#8b949e', bodyColor: '#e6edf3', padding: 8,
-    },
+    ...CHART_DEFAULTS.plugins,
+    tooltip: { ...CHART_TOOLTIP, mode: 'index', intersect: false, padding: 8 },
   },
   scales: {
     x: { ticks: { maxTicksLimit: 10, maxRotation: 0, color: '#4d5562', font: { size: 9 } }, grid: { color: 'rgba(48,54,61,0.4)' } },

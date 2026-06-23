@@ -2,27 +2,21 @@ import { useState, useEffect, useRef } from 'react'
 import Navbar from '../components/layout/Navbar'
 import { getMetrics, getPHDiagram } from '../services/api'
 import { cyclePoints, getPHXRange, normalizePHCycle } from '../utils/phDiagram'
+import { COMPRESSORS, toLocalDT } from '../utils/format'
 import { Scatter } from 'react-chartjs-2'
 import { Chart as ChartJS, LinearScale, LogarithmicScale, PointElement, LineElement, Tooltip } from 'chart.js'
 
 ChartJS.register(LinearScale, LogarithmicScale, PointElement, LineElement, Tooltip)
 
-const COMPRESSORS = ['COMP-01','COMP-02','COMP-03','COMP-04','COMP-05','COMP-06','COMP-07']
-
 const CYCLE_POINT_LABELS = ['1: Evap outlet', '2: Comp outlet', '3: Cond outlet', '4: Exp inlet']
 
-// Format ISO/Date to local Thai time (UTC+7) string
+// PDF-specific format: "YYYY-MM-DD  HH:mm:ss" in UTC+7
 function fmtLocalDT(value) {
   if (!value) return '--'
   const d = value instanceof Date ? value : new Date(value)
   const p = n => String(n).padStart(2, '0')
   const u = new Date(d.getTime() + 7 * 3600_000)
   return `${u.getUTCFullYear()}-${p(u.getUTCMonth()+1)}-${p(u.getUTCDate())}  ${p(u.getUTCHours())}:${p(u.getUTCMinutes())}:${p(u.getUTCSeconds())}`
-}
-
-function toLocalDTInput(date) {
-  const p = n => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`
 }
 
 export default function PHDiagramPage() {
@@ -34,7 +28,7 @@ export default function PHDiagramPage() {
 
   // "latest" mode vs. เจาะเวลาเอง
   const [useTimestamp, setUseTimestamp] = useState(false)
-  const [timestamp, setTimestamp]       = useState(() => toLocalDTInput(new Date()))
+  const [timestamp, setTimestamp]       = useState(() => toLocalDT(new Date()))
 
   const chartRef = useRef(null)
 
