@@ -85,12 +85,14 @@ export default function HistoryPage() {
   const timerRef     = useRef(null)
   const countdownRef = useRef(null)
 
-  const { records, loading, error, fetch } = useMetrics()
+  const { records, loading, error, fetch } = useMetrics({ limit: 2000 })
+
+  // Always-fresh ref so interval timers don't capture stale callbacks
+  const doLiveRefreshRef = useRef(null)
 
   const doFetch = (s, e) => {
     setPage(1)
     fetch(comp, s, e)
-    setLastRefreshed(new Date())
     requestAnimationFrame(() => {
       if (chartScrollRef.current) chartScrollRef.current.scrollLeft = chartScrollRef.current.scrollWidth
     })
@@ -105,12 +107,20 @@ export default function HistoryPage() {
     setCountdown(AUTO_REFRESH_SECONDS)
   }
 
+  // Keep ref pointing at the latest version so the interval always calls current comp
+  doLiveRefreshRef.current = doLiveRefresh
+
+  // Update lastRefreshed when data actually arrives
+  useEffect(() => {
+    if (records.length) setLastRefreshed(new Date())
+  }, [records])
+
   useEffect(() => {
     if (!liveMode) { clearInterval(timerRef.current); clearInterval(countdownRef.current); return }
     countdownRef.current = setInterval(() => setCountdown(c => c <= 1 ? AUTO_REFRESH_SECONDS : c - 1), 1000)
-    timerRef.current     = setInterval(doLiveRefresh, AUTO_REFRESH_SECONDS * 1000)
+    timerRef.current     = setInterval(() => doLiveRefreshRef.current(), AUTO_REFRESH_SECONDS * 1000)
     return () => { clearInterval(timerRef.current); clearInterval(countdownRef.current) }
-  }, [liveMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [liveMode])
 
   useEffect(() => { doLiveRefresh() }, []) // eslint-disable-line
   useEffect(() => { if (liveMode) doLiveRefresh() }, [comp]) // eslint-disable-line
@@ -123,6 +133,7 @@ export default function HistoryPage() {
     })
     if (chartPanelRef.current) obs.observe(chartPanelRef.current)
     return () => obs.disconnect()
+    // chartPanelRef is always mounted (not conditional), so [] is correct here
   }, [])
 
   const rows       = [...records].reverse()

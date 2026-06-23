@@ -5,17 +5,10 @@ import { getMetrics } from '../services/api'
  * useMetrics — fetch + optional realtime polling
  *
  * @param {object} options
- * @param {number|null} options.pollInterval  - milliseconds between auto-fetches (null = disabled)
- *
- * Usage:
- *   const { records, loading, error, fetch, isPolling } = useMetrics({ pollInterval: 5000 })
- *
- * When pollInterval is set and fetch() is called, the hook will:
- *   - keep the compressorId + startDate window fixed
- *   - slide `end` to `now` on every poll tick
- *   - stop polling on unmount or when pollInterval is set to null
+ * @param {number|null} options.pollInterval  - ms between auto-fetches (null = disabled)
+ * @param {number}      options.limit         - max records per fetch (default 720)
  */
-export function useMetrics({ pollInterval = null } = {}) {
+export function useMetrics({ pollInterval = null, limit = 720 } = {}) {
   const [records, setRecords]   = useState([])
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState(null)
@@ -40,7 +33,7 @@ export function useMetrics({ pollInterval = null } = {}) {
     setLoading(true)
     setError(null)
     try {
-      const params = { limit: 720 }
+      const params = { limit }
       if (startDate) params.start = new Date(startDate).toISOString()
       if (endDate)   params.end   = new Date(endDate).toISOString()
       const res = await getMetrics(compressorId, params)
@@ -53,7 +46,7 @@ export function useMetrics({ pollInterval = null } = {}) {
     } finally {
       if (mountedRef.current) setLoading(false)
     }
-  }, [])
+  }, [limit]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Public fetch — manual trigger, also (re)starts the poll timer
   const fetch = useCallback((compressorId, startDate, endDate) => {

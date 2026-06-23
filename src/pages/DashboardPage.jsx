@@ -64,7 +64,10 @@ function getWarn(key, val) {
 export default function DashboardPage() {
   const { user }    = useAuth()
   const location    = useLocation()
-  const [comp, setComp]                     = useState('OVERVIEW')
+  const [comp, setComp] = useState(() => {
+    const saved = localStorage.getItem('dashboard-comp')
+    return saved === 'OVERVIEW' || COMPRESSORS.includes(saved) ? saved : 'OVERVIEW'
+  })
   const [start, setStart]                   = useState('')
   const [end, setEnd]                       = useState('')
   const [connStatus, setConnStatus]         = useState('connecting')
@@ -89,11 +92,13 @@ export default function DashboardPage() {
   const shScrollRef    = useRef(null)
   const pwScrollRef    = useRef(null)
   const copPanelRef    = useRef(null)
+  const activeCompRef  = useRef(comp)  // always tracks latest comp for async PH callbacks
   const secPanelRef    = useRef(null)
 
   const { records, loading, error, fetch, isPolling } = useMetrics({ pollInterval })
 
   const handleSelectComp = useCallback((selectedComp) => {
+    localStorage.setItem('dashboard-comp', selectedComp)
     setComp(selectedComp)
     if (selectedComp !== 'OVERVIEW') {
       const now = new Date(), past = new Date(now - 2 * 3600 * 1000)
@@ -126,13 +131,21 @@ export default function DashboardPage() {
     else            setConnStatus('live')
   }, [loading, error])
 
-  useEffect(() => { setPhData(null) }, [comp])
+  useEffect(() => {
+    activeCompRef.current = comp
+    setPhData(null)
+  }, [comp])
 
   useEffect(() => {
     if (!records.length || comp === 'OVERVIEW') return
+    // Skip if records are stale from the previous compressor
+    if (records[0]?.compressor_id !== comp) return
     setLastUpdated(Date.now())
     setStaleSeconds(0)
-    getPHDiagram(comp).then(r => setPhData(r.data)).catch(() => {})
+    const snapComp = comp
+    getPHDiagram(snapComp)
+      .then(r => { if (activeCompRef.current === snapComp) setPhData(r.data) })
+      .catch(() => {})
     const alarms = records[0]?.diagnosis?.alarms || []
     if (alarms.length) {
       setPopupDismissed(false)
@@ -205,7 +218,10 @@ export default function DashboardPage() {
     setSelectedDiag(rec.diagnosis)
     setSelectedTs(rec.timestamp)
     setSelectedIdx(idx)
-    getPHDiagram(comp, { record_id: rec._id }).then(r => setPhData(r.data)).catch(() => {})
+    const snapComp = comp
+    getPHDiagram(snapComp, { record_id: rec._id })
+      .then(r => { if (activeCompRef.current === snapComp) setPhData(r.data) })
+      .catch(() => {})
     setTimeout(() => {
       if (reportRef.current) reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 150)
