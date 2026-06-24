@@ -44,7 +44,7 @@ const KPI_ACCENT = {
   m_dot_kgh: 'var(--blue)', superheat_suc: 'var(--red)', subcooling: 'var(--purple)',
   pressure_ratio: 'var(--orange)', t_evap_c: 'var(--cyan)', t_cond_c: 'var(--red)',
   eta_is_pct: 'var(--green)', h1: 'var(--text-2)', h2: 'var(--text-2)', h3: 'var(--text-2)',
-  q_l_kgkg: 'var(--amber)', w_comp_kgkg: 'var(--orange)', sp_kg: 'var(--cyan)',
+  q_l_kjkg: 'var(--amber)', w_comp_kjkg: 'var(--orange)', sp_kg: 'var(--cyan)',
   dp_kg: 'var(--red)', st_c: 'var(--cyan)', dt_c: 'var(--red)',
   liquid_temp_c: 'var(--purple)', current_amp: 'var(--amber)',
   evaporator_room_temp_c: 'var(--blue)', condenser_temp_c: 'var(--orange)',

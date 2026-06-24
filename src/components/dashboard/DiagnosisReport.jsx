@@ -32,8 +32,8 @@ const DETAIL_SECTIONS = [
   {
     title: 'Output',
     rows: [
-      { label: 'q_L = h1−h4',    key: 'q_l_kgkg',    unit: 'kJ/kg' },
-      { label: 'w_comp = h2−h1', key: 'w_comp_kgkg', unit: 'kJ/kg' },
+      { label: 'q_L = h1−h4',    key: 'q_l_kjkg',    unit: 'kJ/kg' },
+      { label: 'w_comp = h2−h1', key: 'w_comp_kjkg', unit: 'kJ/kg' },
       { label: 'ṁ',              key: 'm_dot_kgh',   unit: 'kg/h'  },
       { label: 'Modes',          key: 'modes_text',  unit: ''      },
     ]
@@ -81,8 +81,8 @@ export default function DiagnosisReport({ diag }) {
     h2s:         diag.enthalpy?.h2s,
     eta_is_pct:  diag.enthalpy?.eta_is_pct,
     h3:          diag.enthalpy?.h3,
-    q_l_kgkg:   diag.enthalpy?.q_l_kgkg,
-    w_comp_kgkg: diag.enthalpy?.w_comp_kgkg,
+    q_l_kjkg:   diag.enthalpy?.q_l_kjkg,
+    w_comp_kjkg: diag.enthalpy?.w_comp_kjkg,
     m_dot_kgh:   diag.m_dot_kgh,
     modes_text:  diag.modes
       ? `ST: ${diag.modes.sh_mode} · DT: ${diag.modes.dt_mode}`
