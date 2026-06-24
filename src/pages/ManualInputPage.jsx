@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Navbar from '../components/layout/Navbar'
+import Sidebar from '../components/layout/Sidebar'
 import { postMetrics } from '../services/api'
 import { COMPRESSORS } from '../utils/format'
 
@@ -84,9 +84,9 @@ export default function ManualInputPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg0)' }}>
-      <Navbar />
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px 40px' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg0)' }}>
+      <Sidebar />
+      <div style={{ flex: 1, minWidth: 0, padding: '24px 20px 40px' }}>
         <div className="panel">
           <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>Manual Input</div>
           <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 20 }}>

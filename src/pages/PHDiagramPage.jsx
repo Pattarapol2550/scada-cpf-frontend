@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import Navbar from '../components/layout/Navbar'
+import Sidebar from '../components/layout/Sidebar'
 import { getMetrics, getPHDiagram } from '../services/api'
 import { cyclePoints, getPHXRange, normalizePHCycle } from '../utils/phDiagram'
 import { COMPRESSORS, toLocalDT } from '../utils/format'
@@ -282,9 +282,9 @@ export default function PHDiagramPage() {
 
   // ── Render ────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg0)' }}>
-      <Navbar />
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg0)' }}>
+      <Sidebar />
+      <div style={{ flex: 1, minWidth: 0, padding: '24px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
         {/* ── Filter bar ─────────────────────────────── */}
         <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>

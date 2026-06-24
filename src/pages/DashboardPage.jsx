@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import Navbar from '../components/layout/Navbar'
+import Sidebar from '../components/layout/Sidebar'
 import KPICard from '../components/dashboard/KPICard'
 import AlarmLog from '../components/dashboard/AlarmLog'
 import DiagnosisReport from '../components/dashboard/DiagnosisReport'
@@ -255,17 +255,10 @@ export default function DashboardPage() {
   const secW = Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg0)' }}>
-      <Navbar connStatus={connStatus} />
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg0)' }} >
+      <Sidebar connStatus={connStatus} />
 
-      {user?.username && (
-        <div style={{ padding: '8px 20px', background: 'var(--bg1)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>สวัสดี, {user.username}</span>
-          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: user.role === 'admin' ? 'var(--blue-dim)' : 'var(--bg3)', color: user.role === 'admin' ? 'var(--blue)' : 'var(--text-3)', border: `1px solid ${user.role === 'admin' ? 'var(--blue)' : 'var(--border)'}`, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            {user.role === 'admin' ? 'Admin' : 'User'}
-          </span>
-        </div>
-      )}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
 
       {isStale && (
         <div style={{ padding: '7px 20px', fontSize: 12, fontWeight: 500, background: 'var(--amber-dim)', borderBottom: '1px solid rgba(210,153,34,0.3)', color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -285,8 +278,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)' }}>
-        {/* Sidebar */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Comp sidebar */}
         <div style={{ width: 160, flexShrink: 0, background: 'var(--bg1)', borderRight: '1px solid var(--border)', padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 2 }}>
           <button onClick={() => handleSelectComp('OVERVIEW')}
             style={{ width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: 13, fontWeight: comp === 'OVERVIEW' ? 600 : 400, border: 'none', borderRadius: 0, background: comp === 'OVERVIEW' ? 'var(--blue-dim)' : 'transparent', color: comp === 'OVERVIEW' ? 'var(--blue)' : 'var(--text-2)', borderLeft: `3px solid ${comp === 'OVERVIEW' ? 'var(--blue)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s', marginBottom: 12 }}
@@ -506,6 +499,7 @@ export default function DashboardPage() {
           }}
         />
       )}
+      </div>
     </div>
   )
 }

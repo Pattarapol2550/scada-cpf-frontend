@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import Navbar from '../components/layout/Navbar'
+import Sidebar from '../components/layout/Sidebar'
 import {
   Panel, PanelHead, Notice, Field, Row2, RCard, Badge,
   WarnBox, ErrBox, DetailTable, CalcBtn,
@@ -512,9 +512,9 @@ export default function CalculatorPage() {
   const [tab, setTab] = useState('single')
 
   return (
-    <div style={{ minHeight:'100vh', background:'var(--bg0)' }}>
-      <Navbar />
-      <div style={{ maxWidth:1080, margin:'0 auto', padding:'24px 20px 80px' }}>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg0)' }}>
+      <Sidebar />
+      <div style={{ flex:1, minWidth:0, padding:'24px 20px 80px' }}>
 
         {/* Header */}
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:20, flexWrap:'wrap', gap:12 }}>

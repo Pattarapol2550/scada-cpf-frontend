@@ -2,7 +2,7 @@
  * DevelopPage.jsx — SCADA synoptic monitor (monitor root)
  * Route: /develop
  */
-import Navbar from '../components/layout/Navbar'
+import Sidebar from '../components/layout/Sidebar'
 import LineStatusBar from '../components/monitor/LineStatusBar'
 import MockScenarioBar from '../components/monitor/MockScenarioBar'
 import MonitorCanvas from '../components/monitor/MonitorCanvas'
@@ -23,13 +23,13 @@ export default function DevelopPage() {
       minHeight: '100vh',
       background: 'var(--bg0)',
       display: 'flex',
-      flexDirection: 'column',
+      flexDirection: 'row',
     }}>
-      <Navbar />
+      <Sidebar />
 
       <main style={{
         flex: 1,
-        width: '100%',
+        minWidth: 0,
         padding: '12px 16px 16px',
         minHeight: 0,
       }}>

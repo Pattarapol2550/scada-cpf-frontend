@@ -713,6 +713,7 @@ function KpiSection() {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { isAdmin, user } = useAuth()
+  const navigate = useNavigate()
   const [profile,  setProfile]  = useState(null)
   const [section,  setSection]  = useState('profile')
 
@@ -751,10 +752,25 @@ export default function SettingsPage() {
         padding: '20px 12px',
         background: 'var(--bg1)',
       }}>
-        {/* Logo + title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, padding: '0 4px' }}>
-          <img src="/settings-icon.png" alt="Settings" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>Settings</span>
+        {/* Back + title */}
+        <div style={{ marginBottom: 20 }}>
+          <button
+            onClick={() => navigate('/dashboard')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: 12, color: 'var(--text-2)', background: 'transparent',
+              border: 'none', cursor: 'pointer', padding: '4px 4px 4px 0',
+              marginBottom: 12,
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-1)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-2)'}
+          >
+            ← กลับหน้าหลัก
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 4px' }}>
+            <img src="/settings-icon.png" alt="Settings" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>Settings</span>
+          </div>
         </div>
 
         {/* Personal */}
