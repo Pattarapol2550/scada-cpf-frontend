@@ -51,4 +51,12 @@ export const postMetrics = (p) => api.post('/api/metrics', p)
 export const getPHDiagram = (comp, params = {}) =>
   api.get(`/api/ph-diagram/${comp}`, { params })
 
+// ── Keep-alive (production only) ──────────────────────────────────────────────
+// Ping /health ทุก 9 นาทีเพื่อป้องกัน Render.com free tier sleep (threshold 15 นาที)
+if (import.meta.env.PROD) {
+  setInterval(() => {
+    api.get('/health').catch(() => {})
+  }, 9 * 60 * 1000)
+}
+
 export default api

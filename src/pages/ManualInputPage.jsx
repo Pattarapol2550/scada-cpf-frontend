@@ -77,7 +77,7 @@ export default function ManualInputPage() {
         condenser_temp_c:       pf('condTemp'),
       })
       setStatus('success')
-      setTimeout(() => navigate('/dashboard'), 1200)
+      setTimeout(() => navigate('/dashboard', { state: { fromInput: compId } }), 400)
     } catch {
       setStatus('error')
     }
