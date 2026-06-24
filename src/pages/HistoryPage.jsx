@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import { useMetrics } from '../hooks/useMetrics'
 import { COMPRESSORS, toLocalDT, formatThaiTime, num } from '../utils/format'
@@ -13,7 +14,7 @@ import { Line } from 'react-chartjs-2'
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
 
 const ROWS_PER_PAGE        = 50
-const AUTO_REFRESH_SECONDS = 120
+const AUTO_REFRESH_SECONDS = 30
 
 const CHART_OPT = {
   ...CHART_DEFAULTS,
@@ -67,6 +68,7 @@ function Pagination({ page, totalPages, onPage }) {
 }
 
 export default function HistoryPage() {
+  const location = useLocation()
   const [comp, setComp]         = useState('COMP-01')
   const [liveMode, setLiveMode] = useState(true)
   const [start, setStart]       = useState(() => toLocalDT(new Date(Date.now() - 2 * 3600000)))
@@ -120,6 +122,14 @@ export default function HistoryPage() {
 
   useEffect(() => { doLiveRefresh() }, []) // eslint-disable-line
   useEffect(() => { if (liveMode) doLiveRefresh() }, [comp]) // eslint-disable-line
+
+  // เมื่อ navigate มาจาก ManualInputPage ให้ switch comp + refresh ทันที
+  useEffect(() => {
+    const fromInput = location.state?.fromInput
+    if (fromInput && COMPRESSORS.includes(fromInput)) {
+      setComp(fromInput)
+    }
+  }, [location.state]) // eslint-disable-line
 
   useEffect(() => {
     const obs = new ResizeObserver(entries => {

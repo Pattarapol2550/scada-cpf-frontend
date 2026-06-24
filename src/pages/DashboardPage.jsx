@@ -106,12 +106,19 @@ export default function DashboardPage() {
       const s = toLocalDT(past), e = toLocalDT(now)
       setStart(s); setEnd(e)
       fetch(selectedComp, s, e)
+      // Fire PH diagram in parallel — no need to wait for records first
+      setPhData(null)
+      getPHDiagram(selectedComp)
+        .then(r => { if (activeCompRef.current === selectedComp) setPhData(r.data) })
+        .catch(() => {})
     }
   }, [fetch])
 
   useEffect(() => {
     const fromMonitor = location.state?.comp
-    if (fromMonitor && COMPRESSORS.includes(fromMonitor)) handleSelectComp(fromMonitor)
+    const fromInput   = location.state?.fromInput
+    const target = fromInput ?? fromMonitor
+    if (target && COMPRESSORS.includes(target)) handleSelectComp(target)
   }, [location.state, handleSelectComp])
 
   const doFetch = useCallback((s, e) => {
@@ -123,6 +130,9 @@ export default function DashboardPage() {
       const now = new Date(), past = new Date(now - 2 * 3600 * 1000)
       const s = toLocalDT(past), e = toLocalDT(now)
       setStart(s); setEnd(e); fetch(comp, s, e)
+      getPHDiagram(comp)
+        .then(r => { if (activeCompRef.current === comp) setPhData(r.data) })
+        .catch(() => {})
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
