@@ -106,11 +106,6 @@ export default function DashboardPage() {
       const s = toLocalDT(past), e = toLocalDT(now)
       setStart(s); setEnd(e)
       fetch(selectedComp, s, e)
-      // Fire PH diagram in parallel — no need to wait for records first
-      setPhData(null)
-      getPHDiagram(selectedComp)
-        .then(r => { if (activeCompRef.current === selectedComp) setPhData(r.data) })
-        .catch(() => {})
     }
   }, [fetch])
 
@@ -130,9 +125,6 @@ export default function DashboardPage() {
       const now = new Date(), past = new Date(now - 2 * 3600 * 1000)
       const s = toLocalDT(past), e = toLocalDT(now)
       setStart(s); setEnd(e); fetch(comp, s, e)
-      getPHDiagram(comp)
-        .then(r => { if (activeCompRef.current === comp) setPhData(r.data) })
-        .catch(() => {})
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -148,7 +140,9 @@ export default function DashboardPage() {
   }, [comp])
 
   useEffect(() => {
-    if (!records.length || comp === 'OVERVIEW') return
+    if (comp === 'OVERVIEW') return
+    // ถ้าไม่มีข้อมูลในช่วงเวลาที่เลือก ล้าง PH diagram ที่อาจค้างจาก parallel call
+    if (!records.length) { setPhData(null); return }
     // Skip if records are stale from the previous compressor
     if (records[0]?.compressor_id !== comp) return
     setLastUpdated(Date.now())
