@@ -379,13 +379,9 @@ export default function DashboardPage() {
                 <div className="panel" style={{ minWidth: 0 }} ref={copPanelRef}>
                   <div className="panel-header">
                     <span className="panel-title">COP Trend</span>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                      {[['Actual', 'var(--green)'], ['System', 'var(--amber)'], ['Cycle', 'var(--pink)']].map(([l, c]) => (
-                        <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text-2)', fontFamily: 'monospace' }}>
-                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: c, display: 'inline-block' }} />{l}
-                        </span>
-                      ))}
-                    </div>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text-2)', fontFamily: 'monospace' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />COP
+                    </span>
                   </div>
                   {rows.length === 0 ? (
                     <div style={{ height: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'var(--bg2)', borderRadius: 8 }}>
@@ -429,7 +425,7 @@ export default function DashboardPage() {
                         plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1c2333', borderColor: '#30363d', borderWidth: 1, bodyColor: '#e6edf3' } },
                         scales: {
                           x: { type: 'linear', min: phXRange.min, max: phXRange.max, title: { display: true, text: 'h (kJ/kg)', color: '#8b949e', font: { size: 9 } }, ticks: { color: '#8b949e', maxTicksLimit: 5 }, grid: { color: 'rgba(48,54,61,0.4)' } },
-                          y: { type: 'logarithmic', min: 0.08, max: 7, title: { display: true, text: 'P (MPa)', color: '#8b949e', font: { size: 9 } }, ticks: { color: '#8b949e', callback: v => v < 1 ? v.toFixed(2) : v.toFixed(1) }, grid: { color: 'rgba(48,54,61,0.4)' } },
+                          y: { type: 'logarithmic', min: (() => { const ps = phData?.saturation_dome?.liquid?.map(p => p.p).filter(Boolean) ?? []; return ps.length ? Math.min(...ps) * 0.9 : 0.04 })(), max: 7, title: { display: true, text: 'P (MPa)', color: '#8b949e', font: { size: 9 } }, ticks: { color: '#8b949e', callback: v => v < 1 ? v.toFixed(2) : v.toFixed(1) }, grid: { color: 'rgba(48,54,61,0.4)' } },
                         },
                       }} />
                     )}
@@ -442,7 +438,7 @@ export default function DashboardPage() {
                 {[
                   { title: 'Pressure',              ref: pressScrollRef, legend: [['SP', 'var(--cyan)'], ['DP', 'var(--red)']], unit: 'kg/cm²', datasets: [mkDs('SP', inputs.map(i => num(i.sp_kg)), '#39c5cf'), mkDs('DP', inputs.map(i => num(i.dp_kg)), '#f85149')] },
                   { title: 'Temperature',           ref: tempScrollRef,  legend: [['ST', 'var(--cyan)'], ['DT', 'var(--red)'], ['Liquid', 'var(--purple)']], unit: '°C', datasets: [mkDs('ST', inputs.map(i => num(i.st_c)), '#39c5cf'), mkDs('DT', inputs.map(i => num(i.dt_c)), '#f85149'), mkDs('Liquid', inputs.map(i => num(i.liquid_temp_c)), '#a371f7')] },
-                  { title: 'Superheat / Subcooling', ref: shScrollRef,   legend: [['Superheat', 'var(--red)'], ['Subcooling', 'var(--purple)']], unit: '°C', datasets: [mkDs('Superheat', diags.map(d => num(d.superheat_suc)), '#f85149'), mkDs('Subcooling', diags.map(d => num(d.subcooling)), '#a371f7')] },
+                  { title: 'Superheat / Subcooling', ref: shScrollRef,   legend: [['Superheat', 'var(--red)'], ['Subcooling', 'var(--purple)']], unit: 'K', datasets: [mkDs('Superheat', diags.map(d => num(d.superheat_suc)), '#f85149'), mkDs('Subcooling', diags.map(d => num(d.subcooling)), '#a371f7')] },
                   { title: 'Power & Capacity',      ref: pwScrollRef,    legend: [['Power kW', 'var(--orange)'], ['Q_L kW', 'var(--cyan)']], unit: 'kW', datasets: [mkDs('P_comp kW', diags.map(d => num(d.power_kw)), '#f0883e'), mkDs('Q_e kW', diags.map(d => num(d.q_e_kw)), '#39c5cf')] },
                 ].map(({ title, ref, legend, unit, datasets }) => (
                   <div key={title} className="panel" style={{ minWidth: 0 }}>

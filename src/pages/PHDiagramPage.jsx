@@ -443,7 +443,7 @@ export default function PHDiagramPage() {
                       ticks: { color: '#4d5562' }, grid: { color: 'rgba(48,54,61,0.5)' },
                     },
                     y: {
-                      type: 'logarithmic', min: 0.08, max: 7,
+                      type: 'logarithmic', min: (() => { const ps = dome?.liquid?.map(p => p.p).filter(Boolean) ?? []; return ps.length ? Math.min(...ps) * 0.9 : 0.04 })(), max: 7,
                       title: { display: true, text: 'Pressure P (MPa)', color: '#4d5562', font: { size: 11 } },
                       ticks: { color: '#4d5562', callback: v => v < 1 ? v.toFixed(2) : v.toFixed(1) },
                       grid: { color: 'rgba(48,54,61,0.5)' },
