@@ -31,8 +31,9 @@ export function formatThaiTime(str, withYear = false) {
   })
 }
 
-/** Parse numeric value — returns null for "--" sentinel or NaN */
+/** Parse numeric value — returns null for null/undefined/"--" sentinel or NaN */
 export function num(v) {
+  if (v === null || v === undefined) return null
   return isNaN(Number(v)) ? null : Number(v)
 }
 

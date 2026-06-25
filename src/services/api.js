@@ -19,7 +19,9 @@ api.interceptors.response.use(
     const status = err?.response?.status
     const isAuth = err?.config?.url?.includes('/api/auth/')
     if (status === 401 && !isAuth && window.location.pathname !== '/login') {
-      window.location.assign('/login')
+      // Dispatch event so React Router (ProtectedRoute) handles navigation,
+      // preserving beforeunload guards and router history state
+      window.dispatchEvent(new CustomEvent('auth:session-expired'))
     }
     return Promise.reject(err)
   }

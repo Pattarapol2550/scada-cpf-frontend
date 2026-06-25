@@ -40,7 +40,7 @@ export function useMonitorFleet({ initialScenario = 'allNormal' } = {}) {
   const lineStatus = useMemo(() => resolveLineStatus(fleet), [fleet])
 
   const tagValues = useMemo(() => {
-    if (!IS_MOCK) return getScenarioReadouts('allNormal')
+    if (!IS_MOCK) return {}
     return getScenarioReadouts(scenarioKey)
   }, [scenarioKey])
 

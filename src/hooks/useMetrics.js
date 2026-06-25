@@ -9,15 +9,16 @@ import { getMetrics } from '../services/api'
  * @param {number}      options.limit         - max records per fetch (default 720)
  */
 export function useMetrics({ pollInterval = null, limit = 720 } = {}) {
-  const [records, setRecords]   = useState([])
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState(null)
+  const [records, setRecords]     = useState([])
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState(null)
   const [isPolling, setIsPolling] = useState(false)
 
-  // Keep latest fetch params so the interval can re-use them
   const lastParams = useRef({ compressorId: null, startDate: null, windowMs: null })
   const timerRef   = useRef(null)
   const mountedRef = useRef(true)
+  // Always-fresh tick fn — avoids duplicating the sliding-window logic
+  const tickRef    = useRef(() => {})
 
   useEffect(() => {
     mountedRef.current = true
@@ -27,7 +28,6 @@ export function useMetrics({ pollInterval = null, limit = 720 } = {}) {
     }
   }, [])
 
-  // Core fetcher — always slides `end` to now when called from poll
   const _doFetch = useCallback(async (compressorId, startDate, endDate) => {
     if (!mountedRef.current) return
     setLoading(true)
@@ -48,51 +48,45 @@ export function useMetrics({ pollInterval = null, limit = 720 } = {}) {
     }
   }, [limit]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Public fetch — manual trigger, also (re)starts the poll timer
+  // Keep tickRef current so the interval always uses the latest _doFetch / lastParams
+  tickRef.current = () => {
+    const { compressorId: cId, windowMs: wMs } = lastParams.current
+    if (!cId) return
+    const now   = new Date()
+    const start = new Date(now - wMs)
+    _doFetch(cId, start.toISOString(), now.toISOString())
+  }
+
+  // Public fetch — updates params, triggers an immediate fetch, then arms the timer
   const fetch = useCallback((compressorId, startDate, endDate) => {
-    // Compute window size so poll can slide it forward
     const windowMs = startDate && endDate
       ? new Date(endDate) - new Date(startDate)
-      : 2 * 3600 * 1000 // default 2 h
+      : 2 * 3600 * 1000
 
     lastParams.current = { compressorId, startDate, windowMs }
-
     _doFetch(compressorId, startDate, endDate)
 
-    // (Re)start interval if polling is enabled
     clearInterval(timerRef.current)
     if (pollInterval) {
       setIsPolling(true)
-      timerRef.current = setInterval(() => {
-        const { compressorId: cId, windowMs: wMs } = lastParams.current
-        if (!cId) return
-        const now   = new Date()
-        const start = new Date(now - wMs)
-        _doFetch(cId, start.toISOString(), now.toISOString())
-      }, pollInterval)
+      timerRef.current = setInterval(() => tickRef.current(), pollInterval)
     }
   }, [_doFetch, pollInterval])
 
-  // Stop / restart poll when pollInterval prop changes
+  // Restart timer when pollInterval changes (e.g. user picks a different refresh rate)
   useEffect(() => {
     if (!pollInterval) {
       clearInterval(timerRef.current)
       setIsPolling(false)
+      return
     }
-    // If there's an active compressor, restart the timer with the new interval
-    if (pollInterval && lastParams.current.compressorId) {
+    if (lastParams.current.compressorId) {
       clearInterval(timerRef.current)
       setIsPolling(true)
-      timerRef.current = setInterval(() => {
-        const { compressorId: cId, windowMs: wMs } = lastParams.current
-        if (!cId) return
-        const now   = new Date()
-        const start = new Date(now - wMs)
-        _doFetch(cId, start.toISOString(), now.toISOString())
-      }, pollInterval)
+      timerRef.current = setInterval(() => tickRef.current(), pollInterval)
     }
     return () => clearInterval(timerRef.current)
-  }, [pollInterval, _doFetch])
+  }, [pollInterval])  // eslint-disable-line react-hooks/exhaustive-deps
 
   return { records, loading, error, fetch, isPolling }
 }

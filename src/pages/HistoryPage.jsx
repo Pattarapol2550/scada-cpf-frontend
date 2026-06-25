@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
 import Sidebar from '../components/layout/Sidebar'
 import { useMetrics } from '../hooks/useMetrics'
@@ -142,11 +142,12 @@ export default function HistoryPage() {
     // chartPanelRef is always mounted (not conditional), so [] is correct here
   }, [])
 
-  const rows       = [...records].reverse()
-  const labels     = rows.map(r => formatThaiTime(r.timestamp))
-  const diags      = rows.map(r => r.diagnosis || {})
-  const totalPages = Math.max(1, Math.ceil(records.length / ROWS_PER_PAGE))
-  const pageRows   = records.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE)
+  // Memoized — prevents re-deriving 2000-record arrays on every 1s countdown tick
+  const rows       = useMemo(() => [...records].reverse(), [records])
+  const labels     = useMemo(() => rows.map(r => formatThaiTime(r.timestamp)), [rows])
+  const diags      = useMemo(() => rows.map(r => r.diagnosis || {}), [rows])
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(records.length / ROWS_PER_PAGE)), [records])
+  const pageRows   = useMemo(() => records.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE), [records, page])
   const fileBase   = `history_${comp}_${start.replace('T', '_').slice(0, 16)}`
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
 import Sidebar from '../components/layout/Sidebar'
 import KPICard from '../components/dashboard/KPICard'
@@ -94,6 +94,7 @@ export default function DashboardPage() {
   const pwScrollRef    = useRef(null)
   const copPanelRef    = useRef(null)
   const activeCompRef  = useRef(comp)  // always tracks latest comp for async PH callbacks
+  const lastPhIdRef    = useRef(null)  // record _id for which PH was last fetched — prevents refetch on unchanged data
   const secPanelRef    = useRef(null)
 
   const { records, loading, error, fetch, isPolling } = useMetrics({ pollInterval })
@@ -136,6 +137,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     activeCompRef.current = comp
+    lastPhIdRef.current   = null
     setPhData(null)
   }, [comp])
 
@@ -147,6 +149,9 @@ export default function DashboardPage() {
     if (records[0]?.compressor_id !== comp) return
     setLastUpdated(Date.now())
     setStaleSeconds(0)
+    const latestId = records[0]?._id
+    if (lastPhIdRef.current === latestId) return
+    lastPhIdRef.current = latestId
     const snapComp = comp
     getPHDiagram(snapComp)
       .then(r => { if (activeCompRef.current === snapComp) setPhData({ ...r.data, inputs_snapshot: r.data?.inputs_snapshot ?? records[0]?.inputs_snapshot, diagnosis: r.data?.diagnosis ?? records[0]?.diagnosis }) })
@@ -156,6 +161,7 @@ export default function DashboardPage() {
       setPopupDismissed(false)
       setAlarmPopup({ alarms, timestamp: records[0].timestamp })
     } else {
+      setAlarmPopup(null)
       setPopupDismissed(false)
     }
   }, [records, comp])
@@ -199,19 +205,18 @@ export default function DashboardPage() {
     })
   }, [records])
 
-  // Derived
-  const latest  = records[0]?.diagnosis ?? null
-  const rows    = [...records].reverse()
-  const labels  = rows.map(r => formatThaiTime(r.timestamp))
-  const diags   = rows.map(r => r.diagnosis || {})
-  const inputs  = rows.map(r => r.inputs_snapshot || {})
+  // Derived — memoized to avoid re-computing on every render (poll runs every 5s)
+  const latest    = records[0]?.diagnosis ?? null
+  const rows      = useMemo(() => [...records].reverse(), [records])
+  const labels    = useMemo(() => rows.map(r => formatThaiTime(r.timestamp)), [rows])
+  const diags     = useMemo(() => rows.map(r => r.diagnosis || {}), [rows])
+  const inputs    = useMemo(() => rows.map(r => r.inputs_snapshot || {}), [rows])
+  const sparkRows = useMemo(() => rows.slice(-20), [rows])
 
   const latestAlarms      = records[0]?.diagnosis?.alarms || []
   const hasActiveCritical = latestAlarms.some(a => a.severity === 'Critical')
   const hasActiveWarning  = latestAlarms.some(a => a.severity === 'Warning')
   const isStale           = isPolling && staleSeconds > 180
-
-  const sparkRows = rows.slice(-20)
 
   // Export
   const csvFilename  = `dashboard_${comp}.csv`
