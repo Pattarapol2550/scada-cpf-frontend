@@ -169,3 +169,27 @@ body {
 .monitor-critical-pulse rect:first-of-type {
   animation: monitor-critical-pulse 1.2s ease-in-out infinite;
 }
+
+/* ── Hide scrollbar utility ── */
+.hide-scrollbar { scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ── Mobile (< 640px) ── */
+@media (max-width: 639px) {
+  /* Reserve space for fixed bottom nav */
+  body {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Tighter panel padding on mobile */
+  .panel {
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  /* Filter/toolbar flex rows wrap cleanly */
+  .filter-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
