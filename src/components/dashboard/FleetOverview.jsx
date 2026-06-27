@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Bar, Doughnut } from 'react-chartjs-2'
 import { getMetrics } from '../../services/api'
 import { COMPRESSORS, formatThaiTime } from '../../utils/format'
@@ -45,6 +45,14 @@ function barOpts(annotationY, maxY, unitSuffix, textColor, gridColor) {
 export default function FleetOverview({ onSelectComp }) {
   const [fleet, setFleet]     = useState({})
   const [loading, setLoading] = useState(true)
+  const [screenW, setScreenW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
+  useEffect(() => {
+    const h = () => setScreenW(window.innerWidth)
+    window.addEventListener('resize', h)
+    return () => window.removeEventListener('resize', h)
+  }, [])
+  const isMobile = screenW < 640
+  const isTablet = screenW < 1024
 
   const fetchAll = useCallback(async () => {
     try {
@@ -95,7 +103,7 @@ export default function FleetOverview({ onSelectComp }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Fleet KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 10 }}>
         {fleetKpis.map(({ label, value, sub, color, borderAlert }) => (
           <div key={label} style={{ background: 'var(--bg1)', border: `1px solid ${borderAlert ? 'rgba(163,45,45,0.3)' : 'var(--border)'}`, borderRadius: 10, padding: '12px 14px' }}>
             <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 500 }}>{label}</div>
@@ -109,13 +117,13 @@ export default function FleetOverview({ onSelectComp }) {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)', fontSize: 13 }}>กำลังโหลดข้อมูล…</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 8 }}>
-          {compData.map(c => <CompCard key={c.id} id={c.id} diag={c.diag} ts={c.ts} onClick={onSelectComp} />)}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(4, minmax(0, 1fr))' : 'repeat(7, minmax(0, 1fr))', gap: 8 }}>
+          {compData.map(c => <CompCard key={c.id} id={c.id} diag={c.diag} ts={c.ts} onClick={onSelectComp} isMobile={isMobile} />)}
         </div>
       )}
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 220px', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : '1fr 1fr 220px', gap: 10 }}>
         <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', minWidth: 0 }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>COP comparison</div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
@@ -177,20 +185,39 @@ export default function FleetOverview({ onSelectComp }) {
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#a32d2d' }} />{allAlarms.length} active
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '72px 72px 1fr 100px 1fr', gap: 8, paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
-            {['Severity', 'Compressor', 'Alarm', 'เวลา', 'Recommendation'].map(h => (
-              <span key={h} style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-3)' }}>{h}</span>
-            ))}
-          </div>
-          {allAlarms.map((a, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '72px 72px 1fr 100px 1fr', gap: 8, alignItems: 'center', padding: '7px 0', borderBottom: i < allAlarms.length - 1 ? '1px solid var(--border)' : 'none' }}>
-              <StatusBadge severity={a.severity} />
-              <span onClick={() => onSelectComp(a.comp)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--blue)', cursor: 'pointer', textDecoration: 'underline' }}>{a.comp}</span>
-              <span style={{ fontSize: 12, color: 'var(--text-1)' }}>{a.title}</span>
-              <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-3)' }}>{formatThaiTime(a.ts)}</span>
-              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{(a.recommendation || []).slice(0, 2).join(' · ')}</span>
-            </div>
-          ))}
+          {isMobile ? (
+            /* Mobile: card-style alarm rows */
+            allAlarms.map((a, i) => (
+              <div key={i} style={{ padding: '10px 0', borderBottom: i < allAlarms.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <StatusBadge severity={a.severity} />
+                  <span onClick={() => onSelectComp(a.comp)} style={{ fontSize: 12, fontWeight: 700, color: 'var(--blue)', cursor: 'pointer', textDecoration: 'underline' }}>{a.comp}</span>
+                  <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-3)', marginLeft: 'auto' }}>{formatThaiTime(a.ts)}</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-1)', marginBottom: 3 }}>{a.title}</div>
+                {(a.recommendation || []).length > 0 && (
+                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{(a.recommendation || []).slice(0, 2).join(' · ')}</div>
+                )}
+              </div>
+            ))
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '72px 72px 1fr 100px 1fr', gap: 8, paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
+                {['Severity', 'Compressor', 'Alarm', 'เวลา', 'Recommendation'].map(h => (
+                  <span key={h} style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-3)' }}>{h}</span>
+                ))}
+              </div>
+              {allAlarms.map((a, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '72px 72px 1fr 100px 1fr', gap: 8, alignItems: 'center', padding: '7px 0', borderBottom: i < allAlarms.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                  <StatusBadge severity={a.severity} />
+                  <span onClick={() => onSelectComp(a.comp)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--blue)', cursor: 'pointer', textDecoration: 'underline' }}>{a.comp}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-1)' }}>{a.title}</span>
+                  <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-3)' }}>{formatThaiTime(a.ts)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{(a.recommendation || []).slice(0, 2).join(' · ')}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       ) : !loading && (
         <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
