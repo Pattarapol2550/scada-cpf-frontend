@@ -50,6 +50,7 @@ const NAV_LINKS = [
   { to: '/input',      label: 'Input',        short: 'Input', icon: 'ti-pencil'          },
   { to: '/ph-diagram', label: 'P-H Diagram',  short: 'P-H',  icon: 'ti-chart-dots'      },
   { to: '/calculator', label: 'Calculator',   short: 'Calc', icon: 'ti-calculator'      },
+  { to: '/piping-designer', label: 'Piping',  short: 'Pipe', icon: 'ti-route'           },
   { to: '/develop',    label: 'Develop',      short: 'Dev',  icon: 'ti-code'            },
   { to: '/settings',   label: 'Settings',     short: 'Cfg',  icon: 'ti-settings'        },
 ]

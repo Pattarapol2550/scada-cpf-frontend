@@ -12,31 +12,6 @@ function Field({ label, id, value, onChange, required, optional, assumeText }) {
         <span style={{ flex: 1 }}>{label}</span>
         {optional && (
           <span style={{
-            fontSize: 10, padding: '1px 7px', borderRadius: 8,
-            background: hasVal ? 'rgba(63,185,80,0.12)' : 'rgba(107,114,128,0.12)',
-            color: hasVal ? 'var(--green)' : 'var(--text-2)',
-            fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap',
-          }}>
-            {hasVal ? 'measured' : assumeText}
-          </span>
-        )}
-      </label>
-      <input
-        type="number" step="any" id={id}
-        value={value} onChange={e => onChange(e.target.value)}
-        placeholder={optional ? `เว้นว่าง → ${assumeText}` : '0.00'}
-        required={required}
-        style={{
-          width: '100%', padding: '8px 10px', fontSize: 13,
-          fontFamily: 'JetBrains Mono, monospace',
-          background: 'var(--bg2)',
-          border: `1px solid ${hasVal && optional ? 'var(--green)' : 'var(--border)'}`,
-          borderRadius: 8, color: 'var(--text-1)', outline: 'none',
-        }}
-      />
-    </div>
-  )
-}
 
 function SectionLabel({ label, color }) {
   return (

@@ -12,6 +12,7 @@ import PHDiagramPage       from './pages/PHDiagramPage'
 import CalculatorPage      from './pages/CalculatorPage'
 import DevelopPage         from './pages/DevelopPage'
 import SettingsPage       from './pages/SettingsPage'
+import PipingDesignerPage  from './pages/PipingDesignerPage'
 
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/input"      element={<ProtectedRoute><ManualInputPage /></ProtectedRoute>} />
             <Route path="/ph-diagram" element={<ProtectedRoute><PHDiagramPage /></ProtectedRoute>} />
             <Route path="/calculator" element={<ProtectedRoute><CalculatorPage /></ProtectedRoute>} />
+            <Route path="/piping-designer" element={<ProtectedRoute><PipingDesignerPage /></ProtectedRoute>} />
             <Route path="/develop"   element={<ProtectedRoute><DevelopPage /></ProtectedRoute>} />
             <Route path="/settings"   element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
