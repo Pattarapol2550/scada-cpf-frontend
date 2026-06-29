@@ -51,6 +51,8 @@ const NAV_LINKS = [
   { to: '/ph-diagram', label: 'P-H Diagram',  short: 'P-H',  icon: 'ti-chart-dots'      },
   { to: '/calculator', label: 'Calculator',   short: 'Calc', icon: 'ti-calculator'      },
   { to: '/piping-designer', label: 'Piping',  short: 'Pipe', icon: 'ti-route'           },
+  { to: '/cooling-load', label: 'Cooling Load', short: 'Load', icon: 'ti-snowflake'     },
+  { to: '/cpf-dashboard', label: 'CPF Dashboard', short: 'CPF', icon: 'ti-building-factory-2' },
   { to: '/develop',    label: 'Develop',      short: 'Dev',  icon: 'ti-code'            },
   { to: '/settings',   label: 'Settings',     short: 'Cfg',  icon: 'ti-settings'        },
 ]

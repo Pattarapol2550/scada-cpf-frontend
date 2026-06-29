@@ -10,6 +10,8 @@ import HistoryPage         from './pages/HistoryPage'
 import ManualInputPage     from './pages/ManualInputPage'
 import PHDiagramPage       from './pages/PHDiagramPage'
 import CalculatorPage      from './pages/CalculatorPage'
+import CoolingLoadPage     from './pages/CoolingLoadPage'
+import CPFDashboardPage    from './pages/CPFDashboardPage'
 import DevelopPage         from './pages/DevelopPage'
 import SettingsPage       from './pages/SettingsPage'
 import PipingDesignerPage  from './pages/PipingDesignerPage'
@@ -29,6 +31,8 @@ export default function App() {
             <Route path="/ph-diagram" element={<ProtectedRoute><PHDiagramPage /></ProtectedRoute>} />
             <Route path="/calculator" element={<ProtectedRoute><CalculatorPage /></ProtectedRoute>} />
             <Route path="/piping-designer" element={<ProtectedRoute><PipingDesignerPage /></ProtectedRoute>} />
+            <Route path="/cooling-load" element={<ProtectedRoute><CoolingLoadPage /></ProtectedRoute>} />
+            <Route path="/cpf-dashboard" element={<ProtectedRoute><CPFDashboardPage /></ProtectedRoute>} />
             <Route path="/develop"   element={<ProtectedRoute><DevelopPage /></ProtectedRoute>} />
             <Route path="/settings"   element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
