@@ -146,9 +146,21 @@ export default function Sidebar({ connStatus: connStatusProp }) {
                 color:      active ? 'var(--blue)'     : 'var(--text-2)',
                 background: active ? 'var(--blue-dim)' : 'transparent',
                 borderLeft: `3px solid ${active ? 'var(--blue)' : 'transparent'}`,
-                transition: 'background 0.15s, color 0.15s',
+                transition: 'background 0.15s, color 0.15s, border-left-color 0.15s',
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 overflow: 'hidden',
+              }}
+              onMouseEnter={e => {
+                if (active) return
+                e.currentTarget.style.background = 'var(--bg2)'
+                e.currentTarget.style.color = 'var(--text-1)'
+                e.currentTarget.style.borderLeftColor = 'var(--border)'
+              }}
+              onMouseLeave={e => {
+                if (active) return
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = 'var(--text-2)'
+                e.currentTarget.style.borderLeftColor = 'transparent'
               }}
             >
               <i className={`ti ${icon}`} style={{ fontSize: 16, minWidth: 16, textAlign: 'center' }} aria-hidden="true" />
