@@ -11,7 +11,7 @@ import FleetOverview from '../components/dashboard/FleetOverview'
 import { useMetrics } from '../hooks/useMetrics'
 import { useAuth } from '../context/AuthContext'
 import { getPHDiagram } from '../services/api'
-import { COMPRESSORS, toLocalDT, formatThaiTime, formatFull, num } from '../utils/format'
+import { COMPRESSORS, COMPRESSOR_TYPE, toLocalDT, formatThaiTime, formatFull, num } from '../utils/format'
 import { cyclePoints, getPHXRange, normalizePHCycle } from '../utils/phDiagram'
 import { CHART_DEFAULTS, mkDs } from '../utils/chartConfig'
 import { KPI_MAP, loadKpiConfig, getKpiValue } from '../utils/kpiConfig'
@@ -295,9 +295,19 @@ export default function DashboardPage() {
 
       {isMobile && (
         <div className="hide-scrollbar" style={{ display: 'flex', overflowX: 'auto', gap: 6, padding: '8px 12px', background: 'var(--bg1)', borderBottom: '1px solid var(--border)' }}>
-          {['OVERVIEW', ...COMPRESSORS].map(c => (
-            <button key={c} onClick={() => handleSelectComp(c)} style={{ padding: '5px 14px', fontSize: 12, fontWeight: comp === c ? 600 : 400, border: `1px solid ${comp === c ? 'var(--blue)' : 'var(--border)'}`, borderRadius: 20, background: comp === c ? 'var(--blue-dim)' : 'var(--bg2)', color: comp === c ? 'var(--blue)' : 'var(--text-2)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{c === 'OVERVIEW' ? 'Overview' : c}</button>
-          ))}
+          {['OVERVIEW', ...COMPRESSORS].map(c => {
+            const ctype = COMPRESSOR_TYPE[c]
+            const typeColor = ctype === 'high_stage' ? 'var(--cyan)' : ctype === 'booster' ? 'var(--green)' : null
+            const typeLabel = c === 'COMP-05' ? 'S/W' : ctype === 'high_stage' ? 'H' : ctype === 'booster' ? 'B' : null
+            const dotColor = c === 'COMP-05' ? 'var(--amber)' : typeColor
+            return (
+              <button key={c} onClick={() => handleSelectComp(c)}
+                style={{ padding: '5px 12px', fontSize: 12, fontWeight: comp === c ? 600 : 400, border: `1px solid ${comp === c ? 'var(--blue)' : 'var(--border)'}`, borderRadius: 20, background: comp === c ? 'var(--blue-dim)' : 'var(--bg2)', color: comp === c ? 'var(--blue)' : 'var(--text-2)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+                {c === 'OVERVIEW' ? 'Overview' : c.replace('COMP-', '#')}
+                {typeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: dotColor, lineHeight: 1 }}>{typeLabel}</span>}
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -312,13 +322,26 @@ export default function DashboardPage() {
             >Overview</button>
 
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', padding: '0 16px 10px' }}>Compressor</div>
-            {COMPRESSORS.map(c => (
-              <button key={c} onClick={() => handleSelectComp(c)}
-                style={{ width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: 13, fontWeight: comp === c ? 600 : 400, border: 'none', borderRadius: 0, background: comp === c ? 'var(--blue-dim)' : 'transparent', color: comp === c ? 'var(--blue)' : 'var(--text-2)', borderLeft: `3px solid ${comp === c ? 'var(--blue)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s' }}
-                onMouseEnter={e => { if (comp !== c) e.currentTarget.style.background = 'var(--bg2)' }}
-                onMouseLeave={e => { if (comp !== c) e.currentTarget.style.background = 'transparent' }}
-              >{c}</button>
-            ))}
+            {COMPRESSORS.map(c => {
+              const ctype = COMPRESSOR_TYPE[c]
+              const typeColor = ctype === 'high_stage' ? 'var(--cyan)' : ctype === 'booster' ? 'var(--green)' : null
+              const typeLabel = ctype === 'high_stage' ? 'High' : ctype === 'booster' ? 'Boost' : null
+              const isSW = c === 'COMP-05'
+              return (
+                <button key={c} onClick={() => handleSelectComp(c)}
+                  style={{ width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: 12, fontWeight: comp === c ? 600 : 400, border: 'none', borderRadius: 0, background: comp === c ? 'var(--blue-dim)' : 'transparent', color: comp === c ? 'var(--blue)' : 'var(--text-2)', borderLeft: `3px solid ${comp === c ? 'var(--blue)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}
+                  onMouseEnter={e => { if (comp !== c) e.currentTarget.style.background = 'var(--bg2)' }}
+                  onMouseLeave={e => { if (comp !== c) e.currentTarget.style.background = 'transparent' }}
+                >
+                  <span>{c}</span>
+                  {isSW ? (
+                    <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--amber)', background: 'rgba(210,153,34,0.15)', padding: '1px 5px', borderRadius: 4 }}>S/W</span>
+                  ) : typeLabel && (
+                    <span style={{ fontSize: 9, fontWeight: 600, color: typeColor, background: `${typeColor}1a`, padding: '1px 5px', borderRadius: 4 }}>{typeLabel}</span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         )}
 

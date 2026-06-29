@@ -3,9 +3,10 @@
  */
 import axios from 'axios'
 
-// Use relative URL so requests go through the proxy (Vite in dev, Vercel in prod).
-// This keeps cookies same-origin and avoids cross-origin cookie rejection.
-const baseURL = import.meta.env.VITE_API_URL || ''
+// Dev: empty baseURL → Vite proxy (vite.config.js) forwards /api/* to backend.
+// Prod: empty baseURL → Vercel proxy (vercel.json) forwards /api/* to backend.
+// Either way, cookies stay same-origin and are never blocked.
+const baseURL = ''
 
 const api = axios.create({
   baseURL,

@@ -57,7 +57,6 @@ export function AuthProvider({ children }) {
   const logout = () => {
     sessionStorage.removeItem('scada-user')
     setUser(null)
-    authLogout().catch(() => {})
   }
 
   return (

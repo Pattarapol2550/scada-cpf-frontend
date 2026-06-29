@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/layout/Sidebar'
 import { postMetrics } from '../services/api'
-import { COMPRESSORS } from '../utils/format'
+import { COMPRESSORS, COMPRESSOR_TYPE, COMPRESSOR_TYPE_LABEL, getDefaultPressures } from '../utils/format'
 
 function Field({ label, id, value, onChange, required, optional, assumeText }) {
   const hasVal = value !== ''
@@ -51,12 +51,24 @@ function SectionLabel({ label, color }) {
 
 export default function ManualInputPage() {
   const navigate = useNavigate()
-  const [compId, setCompId] = useState('COMP-01')
+  const initComp = 'COMP-01'
+  const initType = COMPRESSOR_TYPE[initComp]
+  const initPressures = getDefaultPressures(initType)
+  const [compId, setCompId] = useState(initComp)
+  const [compType, setCompType] = useState(initType)
   const [form, setForm] = useState({
-    sp: '', st: '', dp: '', dt: '',
-    liqTemp: '', amp: '', roomTemp: '', condTemp: '',
+    sp: String(initPressures.sp), dp: String(initPressures.dp),
+    st: '', dt: '', liqTemp: '', amp: '', roomTemp: '', condTemp: '',
   })
   const [status, setStatus] = useState(null)
+
+  const handleCompChange = (id, overrideType) => {
+    const type = overrideType ?? COMPRESSOR_TYPE[id] ?? 'single'
+    setCompId(id)
+    setCompType(type)
+    const { sp, dp } = getDefaultPressures(type)
+    setForm(f => ({ ...f, sp: sp !== '' ? String(sp) : '', dp: dp !== '' ? String(dp) : '' }))
+  }
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }))
   const pf  = key => form[key] !== '' ? parseFloat(form[key]) : undefined
@@ -67,6 +79,7 @@ export default function ManualInputPage() {
     try {
       await postMetrics({
         compressor_id:          compId,
+        compressor_type:        compType,
         sp_kg:                  pf('sp'),
         dp_kg:                  pf('dp'),
         st_c:                   pf('st'),
@@ -96,10 +109,29 @@ export default function ManualInputPage() {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-2)', marginBottom: 5 }}>Compressor</label>
-              <select value={compId} onChange={e => setCompId(e.target.value)}
-                style={{ width: '100%', padding: '8px 10px', fontSize: 13, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-1)', outline: 'none' }}>
-                {COMPRESSORS.map(c => <option key={c}>{c}</option>)}
-              </select>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <select value={compId} onChange={e => handleCompChange(e.target.value)}
+                  style={{ flex: 1, padding: '8px 10px', fontSize: 13, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-1)', outline: 'none' }}>
+                  {COMPRESSORS.map(c => <option key={c}>{c}</option>)}
+                </select>
+                {/* Type badge — COMP-05 S/W สามารถ toggle ได้ */}
+                {compId === 'COMP-05' ? (
+                  <button type="button" onClick={() => handleCompChange(compId, compType === 'booster' ? 'high_stage' : 'booster')}
+                    style={{ padding: '6px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--amber)', background: 'rgba(210,153,34,0.12)', color: 'var(--amber)', whiteSpace: 'nowrap' }}>
+                    ⚡ S/W: {COMPRESSOR_TYPE_LABEL[compType]}
+                  </button>
+                ) : (
+                  <span style={{ padding: '6px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: `1px solid ${compType === 'high_stage' ? 'var(--cyan)' : 'var(--green)'}`, background: compType === 'high_stage' ? 'rgba(57,197,207,0.1)' : 'rgba(63,185,80,0.1)', color: compType === 'high_stage' ? 'var(--cyan)' : 'var(--green)', whiteSpace: 'nowrap' }}>
+                    {COMPRESSOR_TYPE_LABEL[compType]}
+                  </span>
+                )}
+              </div>
+              {compType === 'booster' && (
+                <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>SP = LP suction · DP = Intermediate · COP threshold 1.5</div>
+              )}
+              {compType === 'high_stage' && (
+                <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>SP = Intermediate suction · DP = HP · COP threshold 2.5</div>
+              )}
             </div>
 
             <SectionLabel label="Suction" color="var(--cyan)" />
