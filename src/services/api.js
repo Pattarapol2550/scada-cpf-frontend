@@ -3,9 +3,9 @@
  */
 import axios from 'axios'
 
-const baseURL = import.meta.env.DEV
-  ? ''
-  : (import.meta.env.VITE_API_URL || 'https://cpfbackend2-0.onrender.com')
+// Use relative URL so requests go through the proxy (Vite in dev, Vercel in prod).
+// This keeps cookies same-origin and avoids cross-origin cookie rejection.
+const baseURL = import.meta.env.VITE_API_URL || ''
 
 const api = axios.create({
   baseURL,

@@ -85,6 +85,7 @@ export default function DashboardPage() {
   const [kpiKeys, setKpiKeys]               = useState(() => loadKpiConfig())
   const [copPanelW, setCopPanelW]           = useState(0)
   const [secPanelW, setSecPanelW]           = useState(0)
+  const [screenW, setScreenW]               = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
 
   const reportRef      = useRef(null)
   const copScrollRef   = useRef(null)
@@ -205,6 +206,15 @@ export default function DashboardPage() {
     })
   }, [records])
 
+  useEffect(() => {
+    const h = () => setScreenW(window.innerWidth)
+    window.addEventListener('resize', h)
+    return () => window.removeEventListener('resize', h)
+  }, [])
+
+  const isMobile = screenW < 640
+  const isTablet = screenW < 1024
+
   // Derived — memoized to avoid re-computing on every render (poll runs every 5s)
   const latest    = records[0]?.diagnosis ?? null
   const rows      = useMemo(() => [...records].reverse(), [records])
@@ -257,7 +267,7 @@ export default function DashboardPage() {
     },
   } : { annotations: {} }
 
-  const secW = Math.max(rows.length * 20, (secPanelW / 2 - 20) || 1)
+  const secW = Math.max(rows.length * 20, (isMobile ? secPanelW - 20 : secPanelW / 2 - 20) || 1)
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg0)' }} >
@@ -283,27 +293,37 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        {/* Comp sidebar */}
-        <div style={{ width: 160, flexShrink: 0, background: 'var(--bg1)', borderRight: '1px solid var(--border)', padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <button onClick={() => handleSelectComp('OVERVIEW')}
-            style={{ width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: 13, fontWeight: comp === 'OVERVIEW' ? 600 : 400, border: 'none', borderRadius: 0, background: comp === 'OVERVIEW' ? 'var(--blue-dim)' : 'transparent', color: comp === 'OVERVIEW' ? 'var(--blue)' : 'var(--text-2)', borderLeft: `3px solid ${comp === 'OVERVIEW' ? 'var(--blue)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s', marginBottom: 12 }}
-            onMouseEnter={e => { if (comp !== 'OVERVIEW') e.currentTarget.style.background = 'var(--bg2)' }}
-            onMouseLeave={e => { if (comp !== 'OVERVIEW') e.currentTarget.style.background = 'transparent' }}
-          >Overview</button>
-
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', padding: '0 16px 10px' }}>Compressor</div>
-          {COMPRESSORS.map(c => (
-            <button key={c} onClick={() => handleSelectComp(c)}
-              style={{ width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: 13, fontWeight: comp === c ? 600 : 400, border: 'none', borderRadius: 0, background: comp === c ? 'var(--blue-dim)' : 'transparent', color: comp === c ? 'var(--blue)' : 'var(--text-2)', borderLeft: `3px solid ${comp === c ? 'var(--blue)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s' }}
-              onMouseEnter={e => { if (comp !== c) e.currentTarget.style.background = 'var(--bg2)' }}
-              onMouseLeave={e => { if (comp !== c) e.currentTarget.style.background = 'transparent' }}
-            >{c}</button>
+      {isMobile && (
+        <div className="hide-scrollbar" style={{ display: 'flex', overflowX: 'auto', gap: 6, padding: '8px 12px', background: 'var(--bg1)', borderBottom: '1px solid var(--border)' }}>
+          {['OVERVIEW', ...COMPRESSORS].map(c => (
+            <button key={c} onClick={() => handleSelectComp(c)} style={{ padding: '5px 14px', fontSize: 12, fontWeight: comp === c ? 600 : 400, border: `1px solid ${comp === c ? 'var(--blue)' : 'var(--border)'}`, borderRadius: 20, background: comp === c ? 'var(--blue-dim)' : 'var(--bg2)', color: comp === c ? 'var(--blue)' : 'var(--text-2)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{c === 'OVERVIEW' ? 'Overview' : c}</button>
           ))}
         </div>
+      )}
+
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Comp sidebar — desktop/tablet only */}
+        {!isMobile && (
+          <div style={{ width: 160, flexShrink: 0, background: 'var(--bg1)', borderRight: '1px solid var(--border)', padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <button onClick={() => handleSelectComp('OVERVIEW')}
+              style={{ width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: 13, fontWeight: comp === 'OVERVIEW' ? 600 : 400, border: 'none', borderRadius: 0, background: comp === 'OVERVIEW' ? 'var(--blue-dim)' : 'transparent', color: comp === 'OVERVIEW' ? 'var(--blue)' : 'var(--text-2)', borderLeft: `3px solid ${comp === 'OVERVIEW' ? 'var(--blue)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s', marginBottom: 12 }}
+              onMouseEnter={e => { if (comp !== 'OVERVIEW') e.currentTarget.style.background = 'var(--bg2)' }}
+              onMouseLeave={e => { if (comp !== 'OVERVIEW') e.currentTarget.style.background = 'transparent' }}
+            >Overview</button>
+
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', padding: '0 16px 10px' }}>Compressor</div>
+            {COMPRESSORS.map(c => (
+              <button key={c} onClick={() => handleSelectComp(c)}
+                style={{ width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: 13, fontWeight: comp === c ? 600 : 400, border: 'none', borderRadius: 0, background: comp === c ? 'var(--blue-dim)' : 'transparent', color: comp === c ? 'var(--blue)' : 'var(--text-2)', borderLeft: `3px solid ${comp === c ? 'var(--blue)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (comp !== c) e.currentTarget.style.background = 'var(--bg2)' }}
+                onMouseLeave={e => { if (comp !== c) e.currentTarget.style.background = 'transparent' }}
+              >{c}</button>
+            ))}
+          </div>
+        )}
 
         {/* Main content */}
-        <div style={{ flex: 1, minWidth: 0, padding: '16px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14, overflowX: 'hidden' }}>
+        <div style={{ flex: 1, minWidth: 0, padding: isMobile ? '10px 12px 24px' : '16px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14, overflowX: 'hidden' }}>
           {comp === 'OVERVIEW' ? (
             <FleetOverview onSelectComp={handleSelectComp} />
           ) : (
@@ -353,7 +373,7 @@ export default function DashboardPage() {
               </div>
 
               {/* KPI cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(kpiKeys.length, 6)}, 1fr)`, gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(3, 1fr)' : `repeat(${Math.min(kpiKeys.length, 6)}, 1fr)`, gap: 10 }}>
                 {kpiKeys.map(key => {
                   const kpi = KPI_MAP[key]
                   if (!kpi) return null
@@ -373,7 +393,7 @@ export default function DashboardPage() {
               </div>
 
               {/* COP Trend + P-H Diagram */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px', gap: 14 }}>
                 <div className="panel" style={{ minWidth: 0 }} ref={copPanelRef}>
                   <div className="panel-header">
                     <span className="panel-title">COP Trend</span>
@@ -432,7 +452,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Secondary charts 2×2 */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }} ref={secPanelRef}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }} ref={secPanelRef}>
                 {[
                   { title: 'Pressure',              ref: pressScrollRef, legend: [['SP', 'var(--cyan)'], ['DP', 'var(--red)']], unit: 'kg/cm²', datasets: [mkDs('SP', inputs.map(i => num(i.sp_kg)), '#39c5cf'), mkDs('DP', inputs.map(i => num(i.dp_kg)), '#f85149')] },
                   { title: 'Temperature',           ref: tempScrollRef,  legend: [['ST', 'var(--cyan)'], ['DT', 'var(--red)'], ['Liquid', 'var(--purple)']], unit: '°C', datasets: [mkDs('ST', inputs.map(i => num(i.st_c)), '#39c5cf'), mkDs('DT', inputs.map(i => num(i.dt_c)), '#f85149'), mkDs('Liquid', inputs.map(i => num(i.liquid_temp_c)), '#a371f7')] },
@@ -462,7 +482,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Analysis Report + Alarm History */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} ref={reportRef}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }} ref={reportRef}>
                 {[
                   { title: 'Analysis Report', content: <DiagnosisReport diag={selectedDiag ?? latest} /> },
                   { title: 'Alarm History',   content: <AlarmLog records={selectedDiag ? [{ diagnosis: selectedDiag, timestamp: selectedTs }] : records} singleRecord={!!selectedDiag} /> },
