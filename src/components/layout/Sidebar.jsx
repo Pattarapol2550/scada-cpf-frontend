@@ -3,8 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { authLogout } from '../../services/api'
 import api from '../../services/api'
+import Avatar from '../common/Avatar'
 
-function Clock({ collapsed }) {
+export function Clock({ collapsed }) {
   const [time, setTime] = useState('')
   useEffect(() => {
     const tick = () =>
@@ -129,7 +130,7 @@ export default function Sidebar({ connStatus: connStatusProp }) {
             }}>
               <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 16px' }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--blue-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--blue)' }}>{initials}</div>
+                <Avatar username={user?.username} size={40} />
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-1)' }}>{user?.username ?? '—'}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{user?.role === 'admin' ? 'Admin' : 'User'}</div>
@@ -190,13 +191,7 @@ export default function Sidebar({ connStatus: connStatusProp }) {
               color: mobileOpen ? 'var(--blue)' : 'var(--text-3)',
             }}
           >
-            <div style={{
-              width: 22, height: 22, borderRadius: '50%',
-              background: mobileOpen ? 'var(--blue)' : 'var(--bg3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 8, fontWeight: 700,
-              color: mobileOpen ? '#fff' : 'var(--text-2)',
-            }}>{initials}</div>
+            <Avatar username={user?.username} size={22} />
             <span style={{ fontSize: 9, lineHeight: 1 }}>Me</span>
           </button>
         </nav>
@@ -299,12 +294,7 @@ export default function Sidebar({ connStatus: connStatusProp }) {
       {/* User + Logout + Toggle */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, overflow: 'hidden' }} title={collapsed ? `สวัสดี, ${user?.username}` : undefined}>
-          <div style={{
-            width: 26, height: 26, minWidth: 26, borderRadius: '50%',
-            background: 'var(--blue-dim)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontWeight: 600, color: 'var(--blue)',
-          }}>{initials}</div>
+          <Avatar username={user?.username} size={26} />
           {!collapsed && (
             <div style={{ overflow: 'hidden' }}>
               <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>สวัสดี, {user?.username ?? '—'}</div>

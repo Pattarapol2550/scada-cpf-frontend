@@ -2,10 +2,12 @@
  * src/pages/SettingsPage.jsx
  * Layout แบบ sidebar + content panel
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth }  from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { useAvatar, resizeImage } from '../hooks/useAvatar'
+import Avatar from '../components/common/Avatar'
 import { ALL_KPI, KPI_MAP, DEFAULT_KPI_KEYS, loadKpiConfig, saveKpiConfig } from '../utils/kpiConfig'
 import {
   getProfile, updateProfile, changePassword,
@@ -95,6 +97,9 @@ function ProfileSection({ profile, onRefresh }) {
   const [toast,    setToast]    = useState({ msg: '', type: '' })
   const [loading,  setLoading]  = useState(false)
   const [saved,    setSaved]    = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const fileRef                 = useRef(null)
+  const { avatar, saveAvatar, removeAvatar } = useAvatar()
 
   useEffect(() => {
     if (profile) {
@@ -127,9 +132,35 @@ function ProfileSection({ profile, onRefresh }) {
     } finally { setLoading(false) }
   }
 
-  if (!profile) return <div style={{ color: 'var(--text-3)', fontSize: 13 }}>กำลังโหลด…</div>
+  const [avatarLoading, setAvatarLoading] = useState(false)
 
-  const initials = (profile.username || '??').slice(0, 2).toUpperCase()
+  const handleAvatarFile = async (file) => {
+    if (!file || !file.type.startsWith('image/')) return
+    setAvatarLoading(true)
+    try {
+      const b64 = await resizeImage(file)
+      await saveAvatar(b64)
+      showToast('อัพโหลดรูปโปรไฟล์สำเร็จ')
+    } catch {
+      showToast('อัพโหลดรูปไม่สำเร็จ', 'error')
+    } finally {
+      setAvatarLoading(false)
+    }
+  }
+
+  const handleRemoveAvatar = async () => {
+    setAvatarLoading(true)
+    try {
+      await removeAvatar()
+      showToast('ลบรูปโปรไฟล์แล้ว')
+    } catch {
+      showToast('ลบรูปไม่สำเร็จ', 'error')
+    } finally {
+      setAvatarLoading(false)
+    }
+  }
+
+  if (!profile) return <div style={{ color: 'var(--text-3)', fontSize: 13 }}>กำลังโหลด…</div>
 
   return (
     <div>
@@ -137,17 +168,37 @@ function ProfileSection({ profile, onRefresh }) {
 
       {/* Avatar card */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 14,
+        display: 'flex', alignItems: 'center', gap: 16,
         padding: 16, background: 'var(--bg2)', borderRadius: 10,
         border: '1px solid var(--border)', marginBottom: 20,
       }}>
-        <div style={{
-          width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
-          background: 'linear-gradient(135deg, var(--cyan), var(--blue))',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 16, fontWeight: 700, color: '#0d1117',
-        }}>{initials}</div>
-        <div>
+        {/* Drop zone */}
+        <div
+          onClick={() => fileRef.current?.click()}
+          onDragOver={e => { e.preventDefault(); setDragging(true) }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={e => { e.preventDefault(); setDragging(false); handleAvatarFile(e.dataTransfer.files[0]) }}
+          title="คลิกหรือลากรูปมาวาง"
+          style={{
+            position: 'relative', cursor: 'pointer', flexShrink: 0,
+            borderRadius: '50%', width: 64, height: 64,
+            border: `2px dashed ${dragging ? 'var(--blue)' : 'var(--border)'}`,
+            transition: 'border-color 0.15s',
+          }}
+        >
+          <Avatar username={profile.username} size={60} fontSize={20} />
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: '50%',
+            background: dragging ? 'rgba(56,139,253,0.25)' : 'rgba(0,0,0,0)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: dragging ? 1 : 0, transition: 'opacity 0.15s',
+            fontSize: 20,
+          }}>📷</div>
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+          onChange={e => handleAvatarFile(e.target.files[0])} />
+
+        <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>
             {profile.username}
           </div>
@@ -159,6 +210,18 @@ function ProfileSection({ profile, onRefresh }) {
             <span style={{ fontSize: 10, color: 'var(--text-3)' }}>
               {profile.auth_provider === 'google' ? '· Google Account' : '· Local Account'}
             </span>
+          </div>
+          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={avatarLoading}
+              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text-2)', opacity: avatarLoading ? 0.5 : 1 }}>
+              {avatarLoading ? 'กำลังบันทึก…' : '📷 อัพโหลดรูป'}
+            </button>
+            {avatar && (
+              <button type="button" onClick={handleRemoveAvatar} disabled={avatarLoading}
+                style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', background: 'transparent', border: '1px solid var(--red)', color: 'var(--red)', opacity: avatarLoading ? 0.5 : 1 }}>
+                ลบรูป
+              </button>
+            )}
           </div>
         </div>
       </div>

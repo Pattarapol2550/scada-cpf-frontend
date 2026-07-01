@@ -1,5 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toLocalDT } from '../../utils/format'
+import Sidebar from '../layout/Sidebar'
+
+function Clock({ collapsed }) {
+  const [time, setTime] = useState('')
+  useEffect(() => {
+    const tick = () =>
+      setTime(new Date().toLocaleString('th-TH', {
+        timeZone: 'Asia/Bangkok', hour12: false,
+        day: '2-digit', month: 'short',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      }))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [])
+  if (collapsed) return null
+  return (
+    <div style={{
+      fontSize: 11, color: 'var(--text-4)', fontFamily: 'JetBrains Mono, monospace',
+      padding: '5px 10px', background: 'var(--bg2)', borderRadius: 6,
+      textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden',
+     
+    }}>{time}</div>
+  )
+}
 
 const SHORTCUTS = [
   { h: 1,  label: '1H'  },
@@ -49,7 +74,8 @@ export default function FilterBar({ start, setStart, end, setEnd, onSearch }) {
         ))}
       </div>
       <div style={{ flex: 1 }} />
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Clock />
         <button className="btn-ghost" onClick={handleReset}>Reset</button>
         <button className="btn-primary" onClick={() => onSearch(start, end)}>🔍 Search</button>
       </div>
