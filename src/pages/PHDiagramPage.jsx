@@ -50,7 +50,6 @@ export default function PHDiagramPage() {
       const metric = metricRes?.data?.find?.(r => String(r._id) === String(res.data?.record_id)) ?? metricRes?.data?.[0]
       setData({
         ...res.data,
-        inputs_snapshot: res.data?.inputs_snapshot ?? metric?.inputs_snapshot,
         diagnosis: res.data?.diagnosis ?? metric?.diagnosis,
       })
     } catch (err) {
@@ -214,7 +213,7 @@ export default function PHDiagramPage() {
       }
 
       // section: Sensor Inputs
-      const inp = data?.inputs_snapshot
+      const inp = data
       const inputRows = inp ? [
         ['SP', inp.sp_kg,         'kg/cm2'],
         ['DP', inp.dp_kg,         'kg/cm2'],
@@ -476,7 +475,7 @@ export default function PHDiagramPage() {
             <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: 'var(--cyan)' }}>
               {(cycle.isentropic_efficiency * 100).toFixed(1)} %
             </span>
-            {!data?.inputs_snapshot?.dt_c && (
+            {!data?.dt_c && (
               <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 8 }}>(assume η = 0.70)</span>
             )}
           </div>

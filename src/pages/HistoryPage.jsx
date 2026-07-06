@@ -283,7 +283,7 @@ export default function HistoryPage() {
                   <tbody>
                     {pageRows.map((rec, i) => {
                       const d   = rec.diagnosis      || {}
-                      const inp = rec.inputs_snapshot || {}
+                      const inp = rec
                       const alarms   = d.alarms || []
                       const hasCrit  = alarms.some(a => a.severity === 'Critical')
                       const cell = (v, hi, sep) => (

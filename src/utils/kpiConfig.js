@@ -75,6 +75,6 @@ export function getKpiValue(record, kpiKey) {
   const diag = record.diagnosis || {}
   if (def.source === 'diagnosis')       return diag[kpiKey]                    ?? null
   if (def.source === 'enthalpy')        return diag.enthalpy?.[kpiKey]         ?? null
-  if (def.source === 'inputs_snapshot') return record.inputs_snapshot?.[kpiKey] ?? null
+  if (def.source === 'inputs_snapshot') return record[kpiKey] ?? null
   return null
 }

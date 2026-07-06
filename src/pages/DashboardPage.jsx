@@ -155,7 +155,7 @@ export default function DashboardPage() {
     lastPhIdRef.current = latestId
     const snapComp = comp
     getPHDiagram(snapComp)
-      .then(r => { if (activeCompRef.current === snapComp) setPhData({ ...r.data, inputs_snapshot: r.data?.inputs_snapshot ?? records[0]?.inputs_snapshot, diagnosis: r.data?.diagnosis ?? records[0]?.diagnosis }) })
+      .then(r => { if (activeCompRef.current === snapComp) setPhData({ ...r.data, diagnosis: r.data?.diagnosis ?? records[0]?.diagnosis }) })
       .catch(() => {})
     const alarms = records[0]?.diagnosis?.alarms || []
     if (alarms.length) {
@@ -220,7 +220,7 @@ export default function DashboardPage() {
   const rows      = useMemo(() => [...records].reverse(), [records])
   const labels    = useMemo(() => rows.map(r => formatThaiTime(r.timestamp)), [rows])
   const diags     = useMemo(() => rows.map(r => r.diagnosis || {}), [rows])
-  const inputs    = useMemo(() => rows.map(r => r.inputs_snapshot || {}), [rows])
+  const inputs    = useMemo(() => rows, [rows])
   const sparkRows = useMemo(() => rows.slice(-20), [rows])
 
   // Downsample for charts — max 60 points for readability; table still uses full rows
@@ -258,7 +258,7 @@ export default function DashboardPage() {
     setSelectedIdx(idx)
     const snapComp = comp
     getPHDiagram(snapComp, { record_id: rec._id })
-      .then(r => { if (activeCompRef.current === snapComp) setPhData({ ...r.data, inputs_snapshot: r.data?.inputs_snapshot ?? rec.inputs_snapshot, diagnosis: r.data?.diagnosis ?? rec.diagnosis }) })
+      .then(r => { if (activeCompRef.current === snapComp) setPhData({ ...r.data, diagnosis: r.data?.diagnosis ?? rec.diagnosis }) })
       .catch(() => {})
     setTimeout(() => {
       if (reportRef.current) reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })

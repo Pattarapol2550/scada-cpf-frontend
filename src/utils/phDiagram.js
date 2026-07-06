@@ -56,7 +56,7 @@ export function normalizePHCycle(data) {
   const cycle = data.cycle ?? {}
   const diag = data.diagnosis ?? {}
   const enthalpy = { ...diag, ...(data.enthalpy ?? {}), ...(diag.enthalpy ?? {}) }
-  const inputs = data.inputs_snapshot ?? data.inputs ?? {}
+  const inputs = data.inputs ?? data ?? {}
   const modes = diag.modes ?? data.modes ?? {}
   const saturation = diag.saturation ?? data.saturation ?? {}
 
