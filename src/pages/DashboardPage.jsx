@@ -11,7 +11,7 @@ import FleetOverview from '../components/dashboard/FleetOverview'
 import { useMetrics } from '../hooks/useMetrics'
 import { useAuth } from '../context/AuthContext'
 import { getPHDiagram } from '../services/api'
-import { COMPRESSORS, COMPRESSOR_TYPE, toLocalDT, formatThaiTime, formatFull, num } from '../utils/format'
+import { COMPRESSORS, COMPRESSOR_TYPE, toLocalDT, formatThaiTime, formatTimeOnly, formatFull, num } from '../utils/format'
 import { cyclePoints, getPHXRange, normalizePHCycle } from '../utils/phDiagram'
 import { CHART_DEFAULTS, mkDs } from '../utils/chartConfig'
 import { KPI_MAP, loadKpiConfig, getKpiValue } from '../utils/kpiConfig'
@@ -22,7 +22,8 @@ import {
   PointElement, LineElement, BarElement, ArcElement,
   Tooltip, Legend, Filler,
 } from 'chart.js'
-import { Line, Scatter } from 'react-chartjs-2'
+import { Scatter } from 'react-chartjs-2'
+import ZoomableChart from '../components/charts/ZoomableChart'
 import Annotation from 'chartjs-plugin-annotation'
 
 ChartJS.register(
@@ -218,7 +219,7 @@ export default function DashboardPage() {
   // Derived — memoized to avoid re-computing on every render (poll runs every 5s)
   const latest    = records[0]?.diagnosis ?? null
   const rows      = useMemo(() => [...records].reverse(), [records])
-  const labels    = useMemo(() => rows.map(r => formatThaiTime(r.timestamp)), [rows])
+  const labels    = useMemo(() => rows.map(r => formatTimeOnly(r.timestamp)), [rows])
   const diags     = useMemo(() => rows.map(r => r.diagnosis || {}), [rows])
   const inputs    = useMemo(() => rows, [rows])
   const sparkRows = useMemo(() => rows.slice(-20), [rows])
@@ -451,7 +452,7 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div style={{ position: 'relative', height: 220, padding: '0 4px 4px' }}>
-                      <Line
+                      <ZoomableChart
                         data={{ labels: chartLabels, datasets: [mkDs('COP', chartDiags.map(d => num(d.cop)), '#3fb950')] }}
                         options={{
                           ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: false,
@@ -508,7 +509,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div style={{ position: 'relative', height: 160, padding: '0 4px 4px' }}>
-                      <Line
+                      <ZoomableChart
                         data={{ labels: chartLabels, datasets }}
                         options={{ ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: unit, color: '#8b949e', font: { size: 9 } } } } }}
                       />

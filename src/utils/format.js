@@ -62,6 +62,18 @@ export function formatThaiTime(str, withYear = false) {
   })
 }
 
+/** ISO string → HH:MM:SS only (for chart x-axis labels) */
+export function formatTimeOnly(str) {
+  if (!str) return '--'
+  return new Date(str).toLocaleString('th-TH', {
+    timeZone: 'Asia/Bangkok',
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+}
+
 /** Parse numeric value — returns null for null/undefined/"--" sentinel or NaN */
 export function num(v) {
   if (v === null || v === undefined) return null

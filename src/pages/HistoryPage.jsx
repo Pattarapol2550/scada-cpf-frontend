@@ -2,14 +2,14 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
 import Sidebar from '../components/layout/Sidebar'
 import { useMetrics } from '../hooks/useMetrics'
-import { COMPRESSORS, toLocalDT, formatThaiTime, num } from '../utils/format'
+import { COMPRESSORS, toLocalDT, formatThaiTime, formatTimeOnly, num } from '../utils/format'
 import { exportCSV, exportXLSX } from '../utils/exportUtils'
 import { CHART_DEFAULTS, CHART_TOOLTIP, mkDs } from '../utils/chartConfig'
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
   PointElement, LineElement, Tooltip, Legend,
 } from 'chart.js'
-import { Line } from 'react-chartjs-2'
+import ZoomableChart from '../components/charts/ZoomableChart'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
 
@@ -144,7 +144,7 @@ export default function HistoryPage() {
 
   // Memoized — prevents re-deriving 2000-record arrays on every 1s countdown tick
   const rows       = useMemo(() => [...records].reverse(), [records])
-  const labels     = useMemo(() => rows.map(r => formatThaiTime(r.timestamp)), [rows])
+  const labels     = useMemo(() => rows.map(r => formatTimeOnly(r.timestamp)), [rows])
   const diags      = useMemo(() => rows.map(r => r.diagnosis || {}), [rows])
 
   // Downsample for chart only — max 60 points; table uses full rows
@@ -228,7 +228,7 @@ export default function HistoryPage() {
             </div>
           ) : (
             <div style={{ position: 'relative', height: 180, padding: '0 4px 4px' }}>
-              <Line
+              <ZoomableChart
                 data={{ labels: chartLabels, datasets: [mkDs('COP', chartDiags.map(d => num(d.cop)), '#3fb950')] }}
                 options={{ ...CHART_OPT, responsive: true, maintainAspectRatio: false }}
               />
