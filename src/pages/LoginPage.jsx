@@ -97,7 +97,7 @@ export default function LoginPage() {
       background: 'var(--bg0)', padding: 16,
     }}>
       <div style={{
-        width: 360, background: 'var(--bg1)',
+        width: '100%', maxWidth: 360, background: 'var(--bg1)',
         border: '1px solid var(--border)',
         borderRadius: 16, padding: 32,
       }}>

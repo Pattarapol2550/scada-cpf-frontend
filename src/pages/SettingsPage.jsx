@@ -15,6 +15,17 @@ import {
   adminToggleActive, adminDeleteUser,
 } from '../services/api'
 
+// ── Responsive hook ───────────────────────────────────────────────────────────
+function useScreenW() {
+  const [w, setW] = useState(window.innerWidth)
+  useEffect(() => {
+    const h = () => setW(window.innerWidth)
+    window.addEventListener('resize', h)
+    return () => window.removeEventListener('resize', h)
+  }, [])
+  return w
+}
+
 // ── Shared ────────────────────────────────────────────────────────────────────
 const inputStyle = {
   width: '100%', padding: '8px 12px', fontSize: 13,
@@ -229,7 +240,7 @@ function ProfileSection({ profile, onRefresh }) {
       <Toast msg={toast.msg} type={toast.type} />
 
       <form onSubmit={handleSave} style={{ maxWidth: 480 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
           <Field label="ชื่อผู้ใช้">
             <input
               type="text" value={username}
@@ -549,7 +560,7 @@ function AdminCreateSection() {
       <SectionHeader title="สร้างผู้ใช้ใหม่" desc="สร้าง account สำหรับ contractor หรือ vendor" />
       <Toast msg={toast.msg} type={toast.type} />
       <form onSubmit={handleSubmit} style={{ maxWidth: 480 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
           <Field label="ชื่อผู้ใช้">
             <input value={form.username} onChange={set('username')}
               required minLength={3} maxLength={32} style={inputStyle} />
@@ -587,6 +598,7 @@ function KpiSection() {
   const [selected, setSelected] = useState(() => loadKpiConfig())
   const [toast,    setToast]    = useState({ msg: '', type: '' })
   const [dragIdx,  setDragIdx]  = useState(null)   // index ที่กำลัง drag
+  const isNarrow = useScreenW() < 900
  
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -655,8 +667,8 @@ function KpiSection() {
       />
       <Toast msg={toast.msg} type={toast.type} />
  
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
- 
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '1fr 1fr', gap: 20 }}>
+
         {/* ── ซ้าย: เลือกจากทั้งหมด ── */}
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 10,
@@ -806,10 +818,51 @@ export default function SettingsPage() {
     { id: 'create', icon: '', label: 'สร้างผู้ใช้' },
   ]
 
-  return (
-    <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)' }}>
+  const screenW  = useScreenW()
+  const isMobile = screenW < 768
+  const allMenus = [...personalMenus, ...(isAdmin ? adminMenus : [])]
 
-      {/* ── Sidebar ── */}
+  return (
+    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 'calc(100vh - 52px)' }}>
+
+      {/* ── Sidebar (desktop) / Top bar (mobile) ── */}
+      {isMobile ? (
+        <div style={{ background: 'var(--bg1)', borderBottom: '1px solid var(--border)', padding: '10px 12px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+                fontSize: 12, color: 'var(--text-2)', background: 'transparent',
+                border: 'none', cursor: 'pointer', padding: 4,
+              }}
+            >
+              ←
+            </button>
+            <img src="/settings-icon.png" alt="Settings" style={{ width: 22, height: 22, objectFit: 'contain' }} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>Settings</span>
+          </div>
+          {/* horizontal scroll menu chips */}
+          <div className="hide-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
+            {allMenus.map(m => (
+              <button
+                key={m.id}
+                onClick={() => setSection(m.id)}
+                style={{
+                  padding: '5px 12px', fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0,
+                  fontWeight: section === m.id ? 600 : 400,
+                  border: `1px solid ${section === m.id ? 'var(--blue)' : 'var(--border)'}`,
+                  borderRadius: 20, cursor: 'pointer',
+                  background: section === m.id ? 'var(--blue-dim, rgba(56,139,253,0.12))' : 'var(--bg2)',
+                  color: section === m.id ? 'var(--blue)' : 'var(--text-2)',
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
       <div style={{
         width: 220, flexShrink: 0,
         borderRight: '1px solid var(--border)',
@@ -864,20 +917,19 @@ export default function SettingsPage() {
           </>
         )}
       </div>
+      )}
 
       {/* ── Content ── */}
-      {/* ── Content ── */}
-<div style={{ flex: 1, padding: '32px 36px', overflowY: 'auto', background: 'var(--bg0)' }}>
-  {/* แก้: ถ้า section === 'kpi' ไม่จำกัด maxWidth */}
-    <div style={{ maxWidth: section === 'kpi' ? 900 : 640 }}>
-        {section === 'profile'  && <ProfileSection profile={profile} onRefresh={loadProfile} />}
-        {section === 'password' && <PasswordSection />}
-        {section === 'theme'    && <ThemeSection />}
-        {section === 'users'    && <AdminUsersSection />}
-        {section === 'create'   && <AdminCreateSection />}
-        {section === 'kpi'      && <KpiSection />}
-    </div>
-</div>
+      <div style={{ flex: 1, minWidth: 0, padding: isMobile ? '16px 14px 32px' : '32px 36px', overflowY: 'auto', background: 'var(--bg0)' }}>
+        <div style={{ maxWidth: section === 'kpi' ? 900 : 640 }}>
+          {section === 'profile'  && <ProfileSection profile={profile} onRefresh={loadProfile} />}
+          {section === 'password' && <PasswordSection />}
+          {section === 'theme'    && <ThemeSection />}
+          {section === 'users'    && <AdminUsersSection />}
+          {section === 'create'   && <AdminCreateSection />}
+          {section === 'kpi'      && <KpiSection />}
+        </div>
+      </div>
     </div>
   )
 }

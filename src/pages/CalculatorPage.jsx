@@ -211,7 +211,7 @@ function PHMiniChart({ cycle, dome, isTwo = false }) {
           <Scatter ref={chartRef} data={{ datasets }} options={options} plugins={[pointLabelPlugin]} />
         </div>
         {/* Cycle point cards */}
-        <div style={{ display:'grid', gridTemplateColumns:`repeat(${isTwo ? 4 : 4}, 1fr)`, gap:8, marginTop:12 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:8, marginTop:12 }}>
           {cyclePoints.slice(0, -1).map((pt, i) => pt && (
             <div key={i} style={{ background:'var(--bg0)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 10px' }}>
               <div style={{ fontSize:9, fontWeight:700, color:'#f0883e', marginBottom:4, letterSpacing:'0.05em' }}>Point {i+1}</div>

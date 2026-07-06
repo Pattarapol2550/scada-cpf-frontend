@@ -135,19 +135,19 @@ export default function ManualInputPage() {
             </div>
 
             <SectionLabel label="Suction" color="var(--cyan)" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
               <Field label="SP (kg/cm²g)" id="sp" value={form.sp} onChange={set('sp')} required />
               <Field label="ST (°C)" id="st" value={form.st} onChange={set('st')} optional assumeText="assume SH=5K" />
             </div>
 
             <SectionLabel label="Discharge" color="var(--red)" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
               <Field label="DP (kg/cm²g)" id="dp" value={form.dp} onChange={set('dp')} required />
               <Field label="DT (°C)" id="dt" value={form.dt} onChange={set('dt')} optional assumeText="assume η=0.70" />
             </div>
 
             <SectionLabel label="Extra" color="var(--text-2)" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
               <Field label="Liquid Temp (°C)"   id="liqTemp"  value={form.liqTemp}  onChange={set('liqTemp')}  optional assumeText="assume SC=0" />
               <Field label="Current (A)"         id="amp"      value={form.amp}      onChange={set('amp')}      optional assumeText="ไม่คำนวณ P_comp" />
               <Field label="Room Temp (°C)"      id="roomTemp" value={form.roomTemp} onChange={set('roomTemp')} optional assumeText="ไม่คำนวณ ΔT" />

@@ -456,7 +456,7 @@ export default function PHDiagramPage() {
 
         {/* ── Cycle values ──────────────────────────── */}
         {cycle && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
             {points.map((pt, i) => pt && (
               <div key={i} className="panel" style={{ padding: '12px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#f0883e', marginBottom: 6, letterSpacing: '0.06em' }}>Point {i+1}</div>

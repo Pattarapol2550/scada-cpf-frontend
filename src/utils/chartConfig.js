@@ -1,5 +1,5 @@
 /**
- * utils/chartConfig.js — Shared Chart.js defaults to avoid copy-paste across pages
+ * utils/chartConfig.js — Shared Chart.js defaults
  */
 
 export const CHART_TOOLTIP = {
@@ -22,10 +22,10 @@ export const CHART_SCALE_Y = {
 }
 
 export const CHART_DEFAULTS = {
-  responsive:           true,
-  maintainAspectRatio:  false,
-  animation:            false,
-  elements:  { point: { radius: 3, hoverRadius: 7 } },
+  responsive:          true,
+  maintainAspectRatio: false,
+  animation:           false,
+  elements: { point: { radius: 3, hoverRadius: 7 } },
   plugins: {
     legend:  { display: false },
     tooltip: { mode: 'point', intersect: true, ...CHART_TOOLTIP },
@@ -33,29 +33,23 @@ export const CHART_DEFAULTS = {
   scales: { x: CHART_SCALE_X, y: CHART_SCALE_Y },
 }
 
-/**
- * Build a line dataset with consistent styling.
- * @param {string} label
- * @param {number[]} data
- * @param {string} color  CSS color string
- */
 export function mkDs(label, data, color) {
   return {
     label,
     data,
-    borderColor:           color,
-    backgroundColor:       'transparent',
-    borderWidth:           1.5,
-    tension:               0,
-    spanGaps:              true,
-    fill:                  false,
-    pointRadius:           3,
-    pointBackgroundColor:  color,
-    pointBorderColor:      color,
-    pointBorderWidth:      1,
-    pointHoverRadius:      7,
+    borderColor:              color,
+    backgroundColor:          'transparent',
+    borderWidth:               1.5,
+    tension:                   0,
+    spanGaps:                  true,
+    fill:                      false,
+    pointRadius:               3,
+    pointBackgroundColor:      color,
+    pointBorderColor:          color,
+    pointBorderWidth:          1,
+    pointHoverRadius:          7,
     pointHoverBackgroundColor: color,
-    pointHoverBorderColor: '#161b22',
-    pointHoverBorderWidth: 2,
+    pointHoverBorderColor:     '#161b22',
+    pointHoverBorderWidth:     2,
   }
 }
