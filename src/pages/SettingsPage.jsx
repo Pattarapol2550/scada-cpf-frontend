@@ -644,6 +644,7 @@ function KpiSection() {
     { id: 'performance', label: 'Performance (คำนวณ)' },
     { id: 'enthalpy',    label: 'Enthalpy (คำนวณ)'    },
     { id: 'sensor',      label: 'Sensor Input (วัด)'  },
+    { id: 'extra',       label: 'Extra Sensors (CSV)'  },
   ]
  
   return (

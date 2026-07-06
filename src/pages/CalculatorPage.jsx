@@ -506,6 +506,187 @@ function TwoStage() {
   )
 }
 
+// ─── Formulas Reference ───────────────────────────────────────────────────────
+
+function FormulaBlock({ label, formula, unit, note }) {
+  return (
+    <div style={{ background:'var(--bg0)', border:'1px solid var(--border)', borderRadius:8, padding:'10px 14px', marginBottom:8 }}>
+      <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:4 }}>{label}</div>
+      <div style={{ fontFamily:'JetBrains Mono, monospace', fontSize:13, color:'var(--cyan)', fontWeight:600 }}>{formula}</div>
+      {unit && <div style={{ fontSize:10, color:'var(--text-3)', marginTop:3 }}>หน่วย: {unit}</div>}
+      {note && <div style={{ fontSize:11, color:'var(--text-2)', marginTop:5, lineHeight:1.6 }}>{note}</div>}
+    </div>
+  )
+}
+
+function FormulaSection({ title, color='var(--blue)', children }) {
+  return (
+    <div style={{ background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:10, marginBottom:14, overflow:'hidden' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderBottom:'1px solid var(--border)', background:'var(--bg2)' }}>
+        <div style={{ width:8, height:8, borderRadius:'50%', background:color, flexShrink:0 }} />
+        <span style={{ fontSize:13, fontWeight:600, color:'var(--text-1)' }}>{title}</span>
+      </div>
+      <div style={{ padding:'12px 14px' }}>{children}</div>
+    </div>
+  )
+}
+
+function FormulasTab() {
+  return (
+    <div>
+      <div style={{ background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'var(--text-2)', lineHeight:1.7 }}>
+        สูตรทั้งหมดด้านล่างนี้ใช้ใน Calculator ทั้ง Single-stage และ Two-stage
+        ค่า thermodynamic properties (h, T_sat, ฯลฯ) คำนวณโดย <span style={{ color:'var(--cyan)', fontFamily:'JetBrains Mono, monospace' }}>CoolProp</span> / <span style={{ color:'var(--cyan)', fontFamily:'JetBrains Mono, monospace' }}>IIR tables</span> ฝั่ง backend
+      </div>
+
+      <FormulaSection title="1 · กำลังไฟฟ้าคอมเพรสเซอร์" color="var(--blue)">
+        <FormulaBlock
+          label="กำลังไฟ 3-phase"
+          formula="P_comp = √3 × V × I × PF"
+          unit="W → หาร 1000 → kW"
+          note="V = 385 V (fixed), PF = 0.86 (fixed) ∴ P_comp [kW] = I × √3 × 385 × 0.86 / 1000 ≈ I × 0.5728"
+        />
+      </FormulaSection>
+
+      <FormulaSection title="2 · แรงดันสัมบูรณ์ (Absolute Pressure)" color="var(--green)">
+        <FormulaBlock
+          label="แปลงจาก gauge เป็น absolute"
+          formula="P_abs [kPa] = (P_gauge [kg/cm²g] + 1.0332) × 98.0665"
+          unit="kPa"
+          note="1 kg/cm²g = 98.0665 kPa | 1 atm = 1.0332 kg/cm²"
+        />
+      </FormulaSection>
+
+      <FormulaSection title="3 · อุณหภูมิอิ่มตัวและ Superheat / Subcool" color="var(--cyan)">
+        <FormulaBlock
+          label="อุณหภูมิอิ่มตัว (saturation)"
+          formula="T_sat = T_sat_NH₃(P_abs)  [CoolProp]"
+          note="T_evap = T_sat(P_low), T_cond = T_sat(P_high)"
+        />
+        <FormulaBlock
+          label="Superheat (ความร้อนยวดยิ่ง)"
+          formula="SH = T_suction − T_evap"
+          unit="K"
+          note="ถ้าไม่กรอก ST จะ assume SH = 5 K → ST = T_evap + 5"
+        />
+        <FormulaBlock
+          label="Subcooling (ความเย็นต่ำกว่าอิ่มตัว)"
+          formula="SC = T_cond − T_liquid"
+          unit="K"
+          note="ถ้าไม่กรอก Liquid Temp จะ assume SC = 0 → h3 = hf(P_high)"
+        />
+      </FormulaSection>
+
+      <FormulaSection title="4 · Enthalpy ณ จุดต่างๆ (Single-Stage)" color="var(--purple)">
+        <FormulaBlock
+          label="h1 — Compressor inlet (superheated vapor)"
+          formula="h1 = h_NH₃(P_low, T_suction)"
+          note="จาก CoolProp ใช้ pressure + temperature → enthalpy"
+        />
+        <FormulaBlock
+          label="h2s — Isentropic discharge (ideal)"
+          formula="h2s = h_NH₃(P_high, s=s1)"
+          note="entropy ที่ inlet = entropy ที่ outlet ในกระบวนการ isentropic"
+        />
+        <FormulaBlock
+          label="h2 — Actual discharge"
+          formula="h2 = h1 + (h2s − h1) / η_is"
+          note="η_is = isentropic efficiency · ถ้าไม่กรอก DT จะ assume η_is = 0.70"
+        />
+        <FormulaBlock
+          label="h3 — Condenser outlet (subcooled liquid)"
+          formula="h3 = hf(P_high) − SC × Cp_liq"
+          note="ถ้า SC=0 → h3 = hf(T_cond)"
+        />
+        <FormulaBlock
+          label="h4 — Evaporator inlet (after expansion valve)"
+          formula="h4 = h3  (isenthalpic process)"
+          note="Expansion valve = กระบวนการ isenthalpic: enthalpy คงที่"
+        />
+      </FormulaSection>
+
+      <FormulaSection title="5 · สมรรถนะระบบ (Single-Stage)" color="var(--amber)">
+        <FormulaBlock
+          label="Specific cooling effect"
+          formula="q_L = h1 − h4"
+          unit="kJ/kg"
+        />
+        <FormulaBlock
+          label="Specific compressor work"
+          formula="w_comp = h2 − h1"
+          unit="kJ/kg"
+        />
+        <FormulaBlock
+          label="Mass flow rate"
+          formula="ṁ = P_comp / w_comp"
+          unit="kg/s → ×3600 → kg/h"
+        />
+        <FormulaBlock
+          label="Cooling capacity"
+          formula="Q_e = ṁ × q_L = ṁ × (h1 − h4)"
+          unit="kW  |  TR = kW / 3.517"
+        />
+        <FormulaBlock
+          label="Heat rejection (condenser)"
+          formula="Q_H = ṁ × (h2 − h3)"
+          unit="kW"
+          note="ตรวจสอบ: Q_H = Q_e + P_comp (energy balance)"
+        />
+        <FormulaBlock
+          label="COP — Coefficient of Performance"
+          formula="COP = Q_e / P_comp = q_L / w_comp"
+          note="COP ยิ่งสูงยิ่งดี (ประหยัดพลังงาน)"
+        />
+      </FormulaSection>
+
+      <FormulaSection title="6 · Two-Stage — Inter-tank & Mass Flow Balance" color="var(--purple)">
+        <FormulaBlock
+          label="h3 — Inter-tank exit (saturated vapor @ P_int)"
+          formula="h3 = hg(T_int)"
+          note="Closed intercooler: booster discharge desuperheated → saturated vapor ที่อุณหภูมิ T_int"
+        />
+        <FormulaBlock
+          label="Mass flow balance at inter-tank"
+          formula="ṁ_high × h3 = ṁ_low × h2 + (ṁ_high − ṁ_low) × hf_int"
+          note="ṁ_high / ṁ_low = (h3 − hf_int) / (h2 − hf_int)  →  หา ṁ_high จาก ṁ_low"
+        />
+        <FormulaBlock
+          label="ṁ_low (low-stage mass flow)"
+          formula="ṁ_low = P_booster / w_booster = P_booster / (h2 − h1)"
+          unit="kg/s"
+        />
+        <FormulaBlock
+          label="COP ระบบรวม"
+          formula="COP_system = Q_e / W_total = (ṁ_low × q_L) / (W_booster + W_high)"
+          note="W_total = W_booster + W_high"
+        />
+      </FormulaSection>
+
+      <FormulaSection title="7 · หน่วยและค่าคงที่ที่ใช้" color="var(--text-3)">
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:8 }}>
+          {[
+            ['V (Supply voltage)', '385 V (3-phase)'],
+            ['PF (Power factor)', '0.86'],
+            ['1 TR (Ton of Refrigeration)', '3.517 kW'],
+            ['1 kg/cm²', '98.0665 kPa'],
+            ['1 atm', '101.325 kPa = 1.0332 kg/cm²'],
+            ['Refrigerant', 'NH₃ (R-717)'],
+            ['Default SH (assume)', '5 K'],
+            ['Default η_is (assume)', '0.70 (70%)'],
+            ['Default SC (assume)', '0 K'],
+            ['Default T_int (Two-stage)', '−7 °C'],
+          ].map(([k, v]) => (
+            <div key={k} style={{ background:'var(--bg0)', border:'1px solid var(--border)', borderRadius:7, padding:'8px 12px' }}>
+              <div style={{ fontSize:10, color:'var(--text-3)', marginBottom:2 }}>{k}</div>
+              <div style={{ fontFamily:'JetBrains Mono, monospace', fontSize:12, color:'var(--text-1)', fontWeight:600 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      </FormulaSection>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CalculatorPage() {
@@ -523,22 +704,26 @@ export default function CalculatorPage() {
               NH₃ Refrigeration Calculator
             </h1>
             <p style={{ fontSize:12, color:'var(--text-3)', marginTop:3, fontFamily:'JetBrains Mono, monospace' }}>
-              Powered by CoolProp / IIR 
+              Powered by CoolProp / IIR
             </p>
           </div>
-          <div style={{ display:'flex', gap:8 }}>
-            {[['single','Single-stage'],['two','Two-stage']].map(([id, label]) => (
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            {[['single','Single-stage','var(--blue)'],['two','Two-stage','var(--purple)'],['formulas','Formulas','var(--cyan)']].map(([id, label, color]) => (
               <button key={id} onClick={() => setTab(id)}
-                style={{ fontFamily:'JetBrains Mono, monospace', fontSize:12, padding:'7px 18px', borderRadius:7, cursor:'pointer', border:`1px solid ${tab===id?'transparent':'var(--border)'}`, background: tab===id?'var(--blue-dim)':'transparent', color: tab===id?'var(--blue)':'var(--text-2)', fontWeight: tab===id?600:400 }}>
+                style={{ fontFamily:'JetBrains Mono, monospace', fontSize:12, padding:'7px 18px', borderRadius:7, cursor:'pointer',
+                  border:`1px solid ${tab===id ? 'transparent' : 'var(--border)'}`,
+                  background: tab===id ? color+'22' : 'transparent',
+                  color: tab===id ? color : 'var(--text-2)',
+                  fontWeight: tab===id ? 600 : 400 }}>
                 {label}
               </button>
             ))}
           </div>
         </div>
 
-      
-
-        {tab === 'single' ? <SingleStage /> : <TwoStage />}
+        {tab === 'single'   && <SingleStage />}
+        {tab === 'two'      && <TwoStage />}
+        {tab === 'formulas' && <FormulasTab />}
       </div>
     </div>
   )

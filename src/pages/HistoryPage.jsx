@@ -146,6 +146,17 @@ export default function HistoryPage() {
   const rows       = useMemo(() => [...records].reverse(), [records])
   const labels     = useMemo(() => rows.map(r => formatThaiTime(r.timestamp)), [rows])
   const diags      = useMemo(() => rows.map(r => r.diagnosis || {}), [rows])
+
+  // Downsample for chart only — max 60 points; table uses full rows
+  const { chartLabels, chartDiags } = useMemo(() => {
+    const MAX = 60
+    if (rows.length <= MAX) return { chartLabels: labels, chartDiags: diags }
+    const step = Math.ceil(rows.length / MAX)
+    const idx = []
+    for (let i = 0; i < rows.length; i += step) idx.push(i)
+    if (idx[idx.length - 1] !== rows.length - 1) idx.push(rows.length - 1)
+    return { chartLabels: idx.map(i => labels[i]), chartDiags: idx.map(i => diags[i]) }
+  }, [rows, labels, diags])
   const totalPages = useMemo(() => Math.max(1, Math.ceil(records.length / ROWS_PER_PAGE)), [records])
   const pageRows   = useMemo(() => records.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE), [records, page])
   const fileBase   = `history_${comp}_${start.replace('T', '_').slice(0, 16)}`
@@ -216,12 +227,11 @@ export default function HistoryPage() {
               <span style={{ fontSize: 13, color: 'var(--text-2)' }}>ไม่พบข้อมูลสำหรับแสดงกราฟ</span>
             </div>
           ) : (
-            <div className="cop-scroll" ref={chartScrollRef}>
-              <div style={{ position: 'relative', height: 180, width: Math.max(rows.length * 20, chartPanelW || 1) }}>
-                <Line key={`${rows.length}-${chartPanelW}`} width={Math.max(rows.length * 20, chartPanelW || 1)} height={180}
-                  data={{ labels, datasets: [mkDs('COP', diags.map(d => num(d.cop)), '#3fb950')] }}
-                  options={{ ...CHART_OPT, responsive: false }} />
-              </div>
+            <div style={{ position: 'relative', height: 180, padding: '0 4px 4px' }}>
+              <Line
+                data={{ labels: chartLabels, datasets: [mkDs('COP', chartDiags.map(d => num(d.cop)), '#3fb950')] }}
+                options={{ ...CHART_OPT, responsive: true, maintainAspectRatio: false }}
+              />
             </div>
           )}
         </div>
@@ -251,18 +261,38 @@ export default function HistoryPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead>
                     <tr>
-                      {['Timestamp', 'SP kg/cm²', 'DP kg/cm²', 'ST °C', 'DT °C', 'Liquid °C', 'Current A', 'COP', 'P_comp kW', 'Q_e kW', 'Superheat K', 'Subcooling K', 'Press. Ratio', 'Mass Flow kg/h', 'Alarms'].map(h => (
-                        <th key={h} style={{ textAlign: 'left', padding: '6px 10px 8px', fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
+                      {/* Core */}
+                      {['Timestamp','SP kg/cm²','DP kg/cm²','ST °C','DT °C','Liquid °C','Current A',
+                        'COP','P_comp kW','Q_e kW','Superheat K','Subcooling K','Press. Ratio','Mass Flow kg/h',
+                        /* Extra sensor */
+                        'Slide Valve %','Oil Press','Oil Temp °C','Oil Filter','Oil Level','NH₃ Level','NH₃ Pump',
+                        'Glycol Temp °C','Glycol Lvl','Run Hour',
+                        'Room 1B °C','Room 1C °C','Room 2B °C','Room 2C °C','Room 3B °C',
+                        'Alarms'
+                      ].map((h, idx) => (
+                        <th key={h} style={{
+                          textAlign: 'left', padding: '6px 10px 8px', fontSize: 9, fontWeight: 600,
+                          letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+                          borderBottom: '1px solid var(--border)',
+                          color: idx >= 15 && idx < 27 ? 'var(--cyan)' : 'var(--text-3)',
+                          borderLeft: idx === 15 ? '2px solid var(--border)' : undefined,
+                        }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {pageRows.map((rec, i) => {
-                      const d      = rec.diagnosis      || {}
-                      const inp    = rec.inputs_snapshot || {}
-                      const alarms = d.alarms || []
-                      const hasCrit = alarms.some(a => a.severity === 'Critical')
-                      const cell = (v, hi) => <td style={{ padding: '6px 10px', fontFamily: 'monospace', color: hi ? 'var(--text-1)' : 'var(--text-2)', whiteSpace: 'nowrap' }}>{v ?? '--'}</td>
+                      const d   = rec.diagnosis      || {}
+                      const inp = rec.inputs_snapshot || {}
+                      const alarms   = d.alarms || []
+                      const hasCrit  = alarms.some(a => a.severity === 'Critical')
+                      const cell = (v, hi, sep) => (
+                        <td style={{ padding: '6px 10px', fontFamily: 'monospace', whiteSpace: 'nowrap',
+                          color: hi ? 'var(--text-1)' : 'var(--text-2)',
+                          borderLeft: sep ? '2px solid var(--border)' : undefined }}>
+                          {v ?? '--'}
+                        </td>
+                      )
                       return (
                         <tr key={rec._id || i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                           <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontSize: 10, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{formatThaiTime(rec.timestamp)}</td>
@@ -271,6 +301,13 @@ export default function HistoryPage() {
                           {cell(d.cop, true)}{cell(d.power_kw, true)}{cell(d.q_e_kw, true)}
                           {cell(d.superheat_suc, true)}{cell(d.subcooling, true)}
                           {cell(d.pressure_ratio, true)}{cell(d.m_dot_kgh)}
+                          {/* Extra sensor fields — separator */}
+                          {cell(inp.slide_valve_pct, false, true)}
+                          {cell(inp.oil_pressure)}{cell(inp.oil_temp)}{cell(inp.oil_filter)}{cell(inp.oil_level)}
+                          {cell(inp.nh3_level)}{cell(inp.nh3_pump)}{cell(inp.glycol_temp)}{cell(inp.glycol_level)}
+                          {cell(inp.run_hour)}
+                          {cell(inp.room_temp_1b)}{cell(inp.room_temp_1c)}
+                          {cell(inp.room_temp_2b)}{cell(inp.room_temp_2c)}{cell(inp.room_temp_3b)}
                           <td style={{ padding: '6px 10px' }}>
                             {alarms.length === 0 ? (
                               <span style={{ fontSize: 9, padding: '1px 7px', borderRadius: 20, background: 'var(--green-dim)', color: 'var(--green)', fontWeight: 600 }}>Normal</span>

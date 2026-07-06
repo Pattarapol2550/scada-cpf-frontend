@@ -51,8 +51,10 @@ const NAV_LINKS = [
   { to: '/input',      label: 'Input',        short: 'Input', icon: 'ti-pencil'          },
   { to: '/ph-diagram', label: 'P-H Diagram',  short: 'P-H',  icon: 'ti-chart-dots'      },
   { to: '/calculator', label: 'Calculator',   short: 'Calc', icon: 'ti-calculator'      },
+  { to: '/import',     label: 'Import CSV',   short: 'Imp',  icon: 'ti-database-import' },
   { to: '/develop',    label: 'Develop',      short: 'Dev',  icon: 'ti-code'            },
   { to: '/settings',   label: 'Settings',     short: 'Cfg',  icon: 'ti-settings'        },
+  { to: '/help',       label: 'Help',         short: 'Help', icon: 'ti-help-circle'     },
 ]
 
 const TABLER_CDN = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css'

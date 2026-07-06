@@ -26,6 +26,22 @@ export const ALL_KPI = [
   { key: 'current_amp',    label: 'Current',       unit: 'A',       source: 'inputs_snapshot', group: 'sensor' },
   { key: 'evaporator_room_temp_c', label: 'Room Temp',  unit: '°C', source: 'inputs_snapshot', group: 'sensor' },
   { key: 'condenser_temp_c',       label: 'Cond. Temp', unit: '°C', source: 'inputs_snapshot', group: 'sensor' },
+  // Extra sensor fields (จาก CSV import / sensor เพิ่มเติม)
+  { key: 'slide_valve_pct', label: 'Slide Valve',  unit: '%',       source: 'inputs_snapshot', group: 'extra' },
+  { key: 'oil_pressure',    label: 'Oil Pressure', unit: 'kg/cm²',  source: 'inputs_snapshot', group: 'extra' },
+  { key: 'oil_temp',        label: 'Oil Temp',     unit: '°C',      source: 'inputs_snapshot', group: 'extra' },
+  { key: 'oil_level',       label: 'Oil Level',    unit: '—',       source: 'inputs_snapshot', group: 'extra' },
+  { key: 'oil_filter',      label: 'Oil Filter ΔP',unit: '—',       source: 'inputs_snapshot', group: 'extra' },
+  { key: 'glycol_temp',     label: 'Glycol Temp',  unit: '°C',      source: 'inputs_snapshot', group: 'extra' },
+  { key: 'glycol_level',    label: 'Glycol Level', unit: '—',       source: 'inputs_snapshot', group: 'extra' },
+  { key: 'nh3_level',       label: 'NH₃ Level',    unit: '—',       source: 'inputs_snapshot', group: 'extra' },
+  { key: 'nh3_pump',        label: 'NH₃ Pump',     unit: '—',       source: 'inputs_snapshot', group: 'extra' },
+  { key: 'run_hour',        label: 'Run Hour',     unit: 'hr',      source: 'inputs_snapshot', group: 'extra' },
+  { key: 'room_temp_1b',    label: 'Room 1B',      unit: '°C',      source: 'inputs_snapshot', group: 'extra' },
+  { key: 'room_temp_1c',    label: 'Room 1C',      unit: '°C',      source: 'inputs_snapshot', group: 'extra' },
+  { key: 'room_temp_2b',    label: 'Room 2B',      unit: '°C',      source: 'inputs_snapshot', group: 'extra' },
+  { key: 'room_temp_2c',    label: 'Room 2C',      unit: '°C',      source: 'inputs_snapshot', group: 'extra' },
+  { key: 'room_temp_3b',    label: 'Room 3B',      unit: '°C',      source: 'inputs_snapshot', group: 'extra' },
 ]
 
 export const KPI_MAP = Object.fromEntries(ALL_KPI.map(k => [k.key, k]))

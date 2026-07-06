@@ -223,6 +223,24 @@ export default function DashboardPage() {
   const inputs    = useMemo(() => rows.map(r => r.inputs_snapshot || {}), [rows])
   const sparkRows = useMemo(() => rows.slice(-20), [rows])
 
+  // Downsample for charts — max 60 points for readability; table still uses full rows
+  const { chartLabels, chartDiags, chartInputs, chartIndexMap } = useMemo(() => {
+    const MAX = 60
+    if (rows.length <= MAX) {
+      return { chartLabels: labels, chartDiags: diags, chartInputs: inputs, chartIndexMap: rows.map((_, i) => i) }
+    }
+    const step = Math.ceil(rows.length / MAX)
+    const idx = []
+    for (let i = 0; i < rows.length; i += step) idx.push(i)
+    if (idx[idx.length - 1] !== rows.length - 1) idx.push(rows.length - 1)
+    return {
+      chartLabels:  idx.map(i => labels[i]),
+      chartDiags:   idx.map(i => diags[i]),
+      chartInputs:  idx.map(i => inputs[i]),
+      chartIndexMap: idx,
+    }
+  }, [rows, labels, diags, inputs])
+
   const latestAlarms      = records[0]?.diagnosis?.alarms || []
   const hasActiveCritical = latestAlarms.some(a => a.severity === 'Critical')
   const hasActiveWarning  = latestAlarms.some(a => a.severity === 'Warning')
@@ -267,7 +285,8 @@ export default function DashboardPage() {
     },
   } : { annotations: {} }
 
-  const secW = Math.max(rows.length * 20, (isMobile ? secPanelW - 20 : secPanelW / 2 - 20) || 1)
+  const MAX_CHART_W = 10_000
+  const secW = Math.min(Math.max(rows.length * 20, (isMobile ? secPanelW - 20 : secPanelW / 2 - 20) || 1), MAX_CHART_W)
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg0)' }} >
@@ -431,25 +450,20 @@ export default function DashboardPage() {
                       <span style={{ fontSize: 11, color: 'var(--text-3)' }}>ลองเปลี่ยนช่วงวันที่หรือเลือก compressor อื่น</span>
                     </div>
                   ) : (
-                    <div className="cop-scroll" style={{ maxWidth: '100%' }} ref={copScrollRef}>
-                      <div style={{ position: 'relative', height: 220, width: Math.max(rows.length * 30, copPanelW || 1) }}>
-                        <Line
-                          key={`cop-${copPanelW}`}
-                          data={{ labels, datasets: [mkDs('COP', diags.map(d => num(d.cop)), '#3fb950')] }}
-                          width={Math.max(rows.length * 30, copPanelW || 1)}
-                          height={220}
-                          options={{
-                            ...CHART_DEFAULTS, responsive: false,
-                            onClick: (_, els) => els.length && showRecord(els[0].index),
-                            onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default' },
-                            plugins: {
-                              ...CHART_DEFAULTS.plugins,
-                              tooltip: { ...CHART_DEFAULTS.plugins.tooltip, mode: 'point', intersect: true, callbacks: { footer: () => 'คลิกเพื่อดู Report ณ เวลานี้' } },
-                              annotation: copAnnotation,
-                            },
-                          }}
-                        />
-                      </div>
+                    <div style={{ position: 'relative', height: 220, padding: '0 4px 4px' }}>
+                      <Line
+                        data={{ labels: chartLabels, datasets: [mkDs('COP', chartDiags.map(d => num(d.cop)), '#3fb950')] }}
+                        options={{
+                          ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: false,
+                          onClick: (_, els) => els.length && showRecord(chartIndexMap[els[0].index]),
+                          onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default' },
+                          plugins: {
+                            ...CHART_DEFAULTS.plugins,
+                            tooltip: { ...CHART_DEFAULTS.plugins.tooltip, mode: 'index', intersect: false, callbacks: { footer: () => 'คลิกเพื่อดู Report ณ เวลานี้' } },
+                            annotation: copAnnotation,
+                          },
+                        }}
+                      />
                     </div>
                   )}
                 </div>
@@ -477,11 +491,11 @@ export default function DashboardPage() {
               {/* Secondary charts 2×2 */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }} ref={secPanelRef}>
                 {[
-                  { title: 'Pressure',              ref: pressScrollRef, legend: [['SP', 'var(--cyan)'], ['DP', 'var(--red)']], unit: 'kg/cm²', datasets: [mkDs('SP', inputs.map(i => num(i.sp_kg)), '#39c5cf'), mkDs('DP', inputs.map(i => num(i.dp_kg)), '#f85149')] },
-                  { title: 'Temperature',           ref: tempScrollRef,  legend: [['ST', 'var(--cyan)'], ['DT', 'var(--red)'], ['Liquid', 'var(--purple)']], unit: '°C', datasets: [mkDs('ST', inputs.map(i => num(i.st_c)), '#39c5cf'), mkDs('DT', inputs.map(i => num(i.dt_c)), '#f85149'), mkDs('Liquid', inputs.map(i => num(i.liquid_temp_c)), '#a371f7')] },
-                  { title: 'Superheat / Subcooling', ref: shScrollRef,   legend: [['Superheat', 'var(--red)'], ['Subcooling', 'var(--purple)']], unit: 'K', datasets: [mkDs('Superheat', diags.map(d => num(d.superheat_suc)), '#f85149'), mkDs('Subcooling', diags.map(d => num(d.subcooling)), '#a371f7')] },
-                  { title: 'Power & Capacity',      ref: pwScrollRef,    legend: [['Power kW', 'var(--orange)'], ['Q_L kW', 'var(--cyan)']], unit: 'kW', datasets: [mkDs('P_comp kW', diags.map(d => num(d.power_kw)), '#f0883e'), mkDs('Q_e kW', diags.map(d => num(d.q_e_kw)), '#39c5cf')] },
-                ].map(({ title, ref, legend, unit, datasets }) => (
+                  { title: 'Pressure',              legend: [['SP', 'var(--cyan)'], ['DP', 'var(--red)']], unit: 'kg/cm²', datasets: [mkDs('SP', chartInputs.map(i => num(i.sp_kg)), '#39c5cf'), mkDs('DP', chartInputs.map(i => num(i.dp_kg)), '#f85149')] },
+                  { title: 'Temperature',           legend: [['ST', 'var(--cyan)'], ['DT', 'var(--red)'], ['Liquid', 'var(--purple)']], unit: '°C', datasets: [mkDs('ST', chartInputs.map(i => num(i.st_c)), '#39c5cf'), mkDs('DT', chartInputs.map(i => num(i.dt_c)), '#f85149'), mkDs('Liquid', chartInputs.map(i => num(i.liquid_temp_c)), '#a371f7')] },
+                  { title: 'Superheat / Subcooling', legend: [['Superheat', 'var(--red)'], ['Subcooling', 'var(--purple)']], unit: 'K', datasets: [mkDs('Superheat', chartDiags.map(d => num(d.superheat_suc)), '#f85149'), mkDs('Subcooling', chartDiags.map(d => num(d.subcooling)), '#a371f7')] },
+                  { title: 'Power & Capacity',      legend: [['Power kW', 'var(--orange)'], ['Q_L kW', 'var(--cyan)']], unit: 'kW', datasets: [mkDs('P_comp kW', chartDiags.map(d => num(d.power_kw)), '#f0883e'), mkDs('Q_e kW', chartDiags.map(d => num(d.q_e_kw)), '#39c5cf')] },
+                ].map(({ title, legend, unit, datasets }) => (
                   <div key={title} className="panel" style={{ minWidth: 0 }}>
                     <div className="panel-header">
                       <span className="panel-title">{title}</span>
@@ -493,12 +507,11 @@ export default function DashboardPage() {
                         ))}
                       </div>
                     </div>
-                    <div className="cop-scroll" ref={ref}>
-                      <div style={{ position: 'relative', height: 160, width: secW }}>
-                        <Line key={`sec-${secPanelW}`} width={secW} height={160}
-                          data={{ labels, datasets }}
-                          options={{ ...CHART_DEFAULTS, responsive: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: unit, color: '#8b949e', font: { size: 9 } } } } }} />
-                      </div>
+                    <div style={{ position: 'relative', height: 160, padding: '0 4px 4px' }}>
+                      <Line
+                        data={{ labels: chartLabels, datasets }}
+                        options={{ ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: unit, color: '#8b949e', font: { size: 9 } } } } }}
+                      />
                     </div>
                   </div>
                 ))}

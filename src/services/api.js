@@ -46,9 +46,10 @@ export const adminToggleActive = (id)  => api.patch(`/api/auth/admin/users/${id}
 export const adminDeleteUser   = (id)  => api.delete(`/api/auth/admin/users/${id}`)
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
-export const getMetrics  = (compressorId, params = {}) =>
+export const getMetrics   = (compressorId, params = {}) =>
   api.get(`/api/metrics/${compressorId}`, { params })
-export const postMetrics = (p) => api.post('/api/metrics', p)
+export const postMetrics  = (p) => api.post('/api/metrics', p)
+export const bulkImport   = (rows) => api.post('/api/metrics/bulk', rows, { timeout: 120_000 })
 
 // ── P-H Diagram ───────────────────────────────────────────────────────────────
 export const getPHDiagram = (comp, params = {}) =>

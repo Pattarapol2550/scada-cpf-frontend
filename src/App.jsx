@@ -12,6 +12,8 @@ import PHDiagramPage       from './pages/PHDiagramPage'
 import CalculatorPage      from './pages/CalculatorPage'
 import DevelopPage         from './pages/DevelopPage'
 import SettingsPage       from './pages/SettingsPage'
+import HelpPage           from './pages/HelpPage'
+import ImportPage         from './pages/ImportPage'
 
 
 export default function App() {
@@ -29,6 +31,8 @@ export default function App() {
             <Route path="/calculator" element={<ProtectedRoute><CalculatorPage /></ProtectedRoute>} />
             <Route path="/develop"   element={<ProtectedRoute><DevelopPage /></ProtectedRoute>} />
             <Route path="/settings"   element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/help"       element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
+            <Route path="/import"     element={<ProtectedRoute><ImportPage /></ProtectedRoute>} />
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
