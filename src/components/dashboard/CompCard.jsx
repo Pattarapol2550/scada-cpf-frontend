@@ -14,11 +14,11 @@ function warnColor(v, lo, hi, hasCrit) {
 const TYPE_COLOR = { booster: 'var(--green)', high_stage: 'var(--cyan)', single: 'var(--text-3)' }
 const TYPE_LABEL = { booster: 'Booster', high_stage: 'High Stage', single: '' }
 
-export default function CompCard({ id, diag, ts, onClick, isMobile }) {
+export default function CompCard({ id, diag, ts, stale, staleSeconds, onClick, isMobile }) {
   const d = diag || {}
   const alarms     = d.alarms || []
   const hasCrit    = alarms.some(a => a.severity === 'Critical')
-  const hasWarn    = alarms.some(a => a.severity === 'Warning')
+  const hasWarn    = alarms.some(a => a.severity === 'Warning') || stale
   const noData     = !ts
   const severity   = noData ? '--' : hasCrit ? 'Critical' : hasWarn ? 'Warning' : 'Normal'
   const borderColor = hasCrit ? 'rgba(163,45,45,0.45)' : hasWarn ? 'rgba(133,79,11,0.4)' : 'var(--border)'
@@ -81,6 +81,11 @@ export default function CompCard({ id, diag, ts, onClick, isMobile }) {
               {a.title}
             </div>
           ))}
+        </div>
+      )}
+      {stale && (
+        <div style={{ fontSize: 10, color: '#854f0b', background: 'rgba(133,79,11,0.08)', borderRadius: 5, padding: '3px 7px', marginTop: 3 }}>
+          ⚠ ตรวจสอบเซนเซอร์
         </div>
       )}
       {noData && <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'center', marginTop: 8 }}>ไม่มีข้อมูล</div>}

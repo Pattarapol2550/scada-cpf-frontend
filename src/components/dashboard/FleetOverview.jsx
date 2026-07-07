@@ -3,6 +3,7 @@ import { Bar, Doughnut } from 'react-chartjs-2'
 import { getMetrics } from '../../services/api'
 import { formatThaiTime } from '../../utils/format'
 import { useCompressors } from '../../hooks/useCompressors'
+import { STALE_THRESHOLD_SEC } from '../../utils/staleConfig'
 import CompCard from './CompCard'
 import StatusBadge from './StatusBadge'
 
@@ -56,6 +57,7 @@ export default function FleetOverview({ onSelectComp }) {
   const isMobile = screenW < 640
   const isTablet = screenW < 1024
 
+
   const fetchAll = useCallback(async () => {
     if (!COMPRESSORS.length) return
     try {
@@ -77,32 +79,60 @@ export default function FleetOverview({ onSelectComp }) {
     return () => clearInterval(timer)
   }, [fetchAll])
 
-  const compData   = COMPRESSORS.map(id => ({ id, ...fleet[id] }))
-  const totalPower = compData.reduce((s, c) => s + (Number(c.diag?.power_kw) || 0), 0)
-  const totalQe    = compData.reduce((s, c) => s + (Number(c.diag?.q_e_kw) || 0), 0)
-  const cops       = compData.map(c => Number(c.diag?.cop) || null).filter(Boolean)
-  const avgCop     = cops.length ? cops.reduce((a, b) => a + b, 0) / cops.length : null
-  const allAlarms  = compData.flatMap(c => (c.diag?.alarms || []).map(a => ({ ...a, comp: c.id, ts: c.ts })))
-  const critCount  = allAlarms.filter(a => a.severity === 'Critical').length
-  const warnCount  = allAlarms.filter(a => a.severity === 'Warning').length
+  // stale = เคยมีข้อมูล (ts ไม่ null) แต่ไม่มีค่าใหม่เข้ามานานเกิน threshold แล้ว
+  // ใช้ useMemo เพื่อไม่ให้ recalculate ทุก render (ลดการ flicker)
+  const { compData, allAlarms, critCount, warnCount, totalPower, totalQe, avgCop } = useMemo(() => {
+    const data = COMPRESSORS.map(id => {
+      const c = { id, ...fleet[id] }
+      const staleSeconds = c.ts ? Math.floor((Date.now() - new Date(c.ts).getTime()) / 1000) : null
+      const stale = staleSeconds !== null && staleSeconds > STALE_THRESHOLD_SEC
+      return { ...c, staleSeconds, stale }
+    })
+    const tp = data.reduce((s, c) => s + (Number(c.diag?.power_kw) || 0), 0)
+    const tq = data.reduce((s, c) => s + (Number(c.diag?.q_e_kw) || 0), 0)
+    const cops = data.map(c => Number(c.diag?.cop) || null).filter(Boolean)
+    const ac = cops.length ? cops.reduce((a, b) => a + b, 0) / cops.length : null
+    const diags = data.flatMap(c => (c.diag?.alarms || []).map(a => ({ ...a, comp: c.id, ts: c.ts })))
+
+    const staleComps = data.filter(c => c.stale).map(c => c.id)
+    const staleAlert = staleComps.length > 0 ? [{
+      severity: 'Warning', comp: 'SYSTEM', ts: new Date().toISOString(),
+      title: `ตรวจสอบเซนเซอร์ — ${staleComps.join(', ')} ไม่ได้รับค่า > 1 นาที`,
+      recommendation: ['ตรวจสอบการเชื่อมต่อ sensor / เครือข่าย'],
+    }] : []
+
+    const allAlm = [...diags, ...staleAlert]
+    return {
+      compData: data,
+      allAlarms: allAlm,
+      critCount: allAlm.filter(a => a.severity === 'Critical').length,
+      warnCount: allAlm.filter(a => a.severity === 'Warning').length,
+      totalPower: tp,
+      totalQe: tq,
+      avgCop: ac,
+    }
+  }, [COMPRESSORS, fleet])
 
   const isDark     = document.documentElement.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches
   const textColor  = isDark ? '#999' : '#888'
   const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
   const shortLabels = COMPRESSORS.map(id => id.replace('COMP-', 'C'))
 
-  const copValues = COMPRESSORS.map(id => Number(fleet[id]?.diag?.cop) || null)
-  const shValues  = COMPRESSORS.map(id => Number(fleet[id]?.diag?.superheat_suc) || null)
-  const pwValues  = COMPRESSORS.map(id => Number(fleet[id]?.diag?.power_kw) || 0)
+  // chart data — useMemo เพื่อไม่ recalculate ทุก render
+  const { copValues, shValues, pwValues } = useMemo(() => ({
+    copValues: COMPRESSORS.map(id => Number(fleet[id]?.diag?.cop) || null),
+    shValues:  COMPRESSORS.map(id => Number(fleet[id]?.diag?.superheat_suc) || null),
+    pwValues:  COMPRESSORS.map(id => Number(fleet[id]?.diag?.power_kw) || 0),
+  }), [COMPRESSORS, fleet])
 
   const n = (v, d = 1) => v ? Number(v).toFixed(d) : '--'
 
-  const fleetKpis = [
+  const fleetKpis = useMemo(() => [
     { label: 'Total power',   value: totalPower ? `${totalPower.toFixed(1)} kW` : '--', sub: 'ทุก compressor รวมกัน', color: 'var(--text-1)' },
     { label: 'Fleet avg COP', value: avgCop ? avgCop.toFixed(2) : '--', sub: 'target ≥ 1.5', color: avgCop && avgCop >= 1.5 ? '#27500a' : '#a32d2d' },
     { label: 'Total cooling', value: totalQe ? `${totalQe.toFixed(1)} kW` : '--', sub: 'Q_e รวมทั้งระบบ', color: 'var(--text-1)' },
     { label: 'Active alarms', value: critCount + warnCount, sub: `${critCount} critical · ${warnCount} warning`, color: (critCount + warnCount) > 0 ? '#a32d2d' : 'var(--text-1)', borderAlert: (critCount + warnCount) > 0 },
-  ]
+  ], [totalPower, avgCop, totalQe, critCount, warnCount])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -122,7 +152,7 @@ export default function FleetOverview({ onSelectComp }) {
         <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)', fontSize: 13 }}>กำลังโหลดข้อมูล…</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(4, minmax(0, 1fr))' : 'repeat(7, minmax(0, 1fr))', gap: 8 }}>
-          {compData.map(c => <CompCard key={c.id} id={c.id} diag={c.diag} ts={c.ts} onClick={onSelectComp} isMobile={isMobile} />)}
+          {compData.map(c => <CompCard key={c.id} id={c.id} diag={c.diag} ts={c.ts} stale={c.stale} staleSeconds={c.staleSeconds} onClick={onSelectComp} isMobile={isMobile} />)}
         </div>
       )}
 

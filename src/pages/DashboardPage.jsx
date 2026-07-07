@@ -10,10 +10,11 @@ import FilterBar from '../components/dashboard/FilterBar'
 import FleetOverview from '../components/dashboard/FleetOverview'
 import { useMetrics } from '../hooks/useMetrics'
 import { useAuth } from '../context/AuthContext'
-import { getPHDiagram } from '../services/api'
+import { getPHDiagram, getMetrics } from '../services/api'
 import { toLocalDT, formatThaiTime, formatTimeOnly, formatFull, num } from '../utils/format'
 import { useCompressors } from '../hooks/useCompressors'
 import { cyclePoints, getPHXRange, normalizePHCycle } from '../utils/phDiagram'
+import { STALE_THRESHOLD_SEC } from '../utils/staleConfig'
 import { CHART_DEFAULTS, mkDs } from '../utils/chartConfig'
 import { loadKpiConfig, getKpiValue, getKpiDef } from '../utils/kpiConfig'
 import { loadLayout, saveLayout, resetLayout, orderWidgets } from '../utils/dashboardLayout'
@@ -41,6 +42,7 @@ const POLL_OPTIONS = [
   { label: '30s',   value: 30_000 },
   { label: '1 min', value: 60_000 },
 ]
+
 
 const KPI_ACCENT = {
   power_kw: 'var(--cyan)', cop: 'var(--green)', q_e_kw: 'var(--amber)',
@@ -80,11 +82,11 @@ export default function DashboardPage() {
   const [selectedIdx, setSelectedIdx]       = useState(null)
   const [phData, setPhData]                 = useState(null)
   const [lastUpdated, setLastUpdated]       = useState(null)
-  const [staleSeconds, setStaleSeconds]     = useState(0)
   const [alarmPopup, setAlarmPopup]         = useState(null)
   const [popupDismissed, setPopupDismissed] = useState(false)
   const [kpiKeys, setKpiKeys]               = useState(() => loadKpiConfig())
   const [screenW, setScreenW]               = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
+  const [fleet, setFleet]                   = useState({})  // เก็บ latest metric ของแต่ละ comp เพื่อหา stale
 
   // ── Drag-to-arrange layout ──────────────────────────────────────────────────
   const [editLayout, setEditLayout]         = useState(false)
@@ -146,15 +148,40 @@ export default function DashboardPage() {
     setPhData(null)
   }, [comp])
 
+  // ดึง latest metric ของทั้ง fleet เพื่อหาว่า comp ไหนไม่ได้รับค่า
+  useEffect(() => {
+    if (!compressorIds.length) return
+    const fetchFleet = async () => {
+      try {
+        const results = await Promise.all(compressorIds.map(id => getMetrics(id, { limit: 1 }).catch(() => null)))
+        const next = {}
+        compressorIds.forEach((id, idx) => {
+          const data = results[idx]?.data?.[0]
+          next[id] = { ts: data?.timestamp || null }
+        })
+        setFleet(next)
+      } catch { /* ignore */ }
+    }
+    fetchFleet()
+    const timer = setInterval(fetchFleet, 30_000)  // refresh ทุก 30 วิ เหมือน FleetOverview
+    return () => clearInterval(timer)
+  }, [compressorIds])
+
   useEffect(() => {
     if (comp === 'OVERVIEW') return
     // ถ้าไม่มีข้อมูลในช่วงเวลาที่เลือก ล้าง PH diagram ที่อาจค้างจาก parallel call
     if (!records.length) { setPhData(null); return }
     // Skip if records are stale from the previous compressor
     if (records[0]?.compressor_id !== comp) return
-    setLastUpdated(Date.now())
-    setStaleSeconds(0)
     const latestId = records[0]?._id
+    // ใช้ timestamp ของ record จริง (ไม่ใช่เวลาที่ client fetch) — กัน "lastUpdated" เข้าใจผิดว่า
+    // เพิ่งมีข้อมูลใหม่ทั้งที่จริงๆ ข้อมูลนั้นค้างมานานแล้วตั้งแต่ก่อนเปิดหน้านี้
+    // useMetrics คืน array reference ใหม่ทุก poll แม้ sensor จะยังไม่ส่งค่าใหม่มา
+    // → reset เฉพาะตอนที่ record ล่าสุดเปลี่ยนจริงๆ (เทียบด้วย _id) เท่านั้น
+    if (lastPhIdRef.current !== latestId) {
+      const dataTs = records[0]?.timestamp ? new Date(records[0].timestamp).getTime() : Date.now()
+      setLastUpdated(dataTs)
+    }
     if (lastPhIdRef.current === latestId) return
     lastPhIdRef.current = latestId
     const snapComp = comp
@@ -170,14 +197,6 @@ export default function DashboardPage() {
       setPopupDismissed(false)
     }
   }, [records, comp])
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!lastUpdated) return
-      setStaleSeconds(Math.floor((Date.now() - lastUpdated) / 1000))
-    }, 30_000)
-    return () => clearInterval(id)
-  }, [lastUpdated])
 
   useEffect(() => {
     const handler = () => setKpiKeys(loadKpiConfig())
@@ -241,7 +260,14 @@ export default function DashboardPage() {
   const latestAlarms      = records[0]?.diagnosis?.alarms || []
   const hasActiveCritical = latestAlarms.some(a => a.severity === 'Critical')
   const hasActiveWarning  = latestAlarms.some(a => a.severity === 'Warning')
-  const isStale           = isPolling && staleSeconds > 180
+  const staleSeconds      = lastUpdated ? Math.floor((Date.now() - lastUpdated) / 1000) : 0
+  const isStale           = isPolling && staleSeconds > STALE_THRESHOLD_SEC
+
+  // หา comp ที่ไม่ได้รับค่า > 60 วิ เพื่อแสดง alert รวม
+  const staleCompsList = compressorIds.filter(id => {
+    const ts = fleet[id]?.ts
+    return ts ? Math.floor((Date.now() - new Date(ts).getTime()) / 1000) > STALE_THRESHOLD_SEC : false
+  })
 
   // Export
   const csvFilename  = `dashboard_${comp}.csv`
@@ -288,9 +314,9 @@ export default function DashboardPage() {
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
 
-      {isStale && (
+      {staleCompsList.length > 0 && (
         <div style={{ padding: '7px 20px', fontSize: 12, fontWeight: 500, background: 'var(--amber-dim)', borderBottom: '1px solid rgba(210,153,34,0.3)', color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          ⚠️ ไม่มีข้อมูลใหม่มานาน {Math.floor(staleSeconds / 60)} นาที — ตรวจสอบการเชื่อมต่อ sensor
+          ⚠️ ตรวจสอบเซนเซอร์ — {staleCompsList.join(', ')} ไม่ได้รับค่า > 1 นาที
         </div>
       )}
 
@@ -428,7 +454,8 @@ export default function DashboardPage() {
                 const widgets = kpiKeys.map(key => {
                   const kpi = getKpiDef(key)
                   if (!kpi) return null
-                  const val = records[0] ? getKpiValue(records[0], key) : null
+                  // ไม่มีข้อมูลใหม่มานานเกิน threshold ระหว่าง live mode → โชว์ "--" แทนค่าเก่าที่ค้างอยู่
+                  const val = isStale ? null : (records[0] ? getKpiValue(records[0], key) : null)
                   const col = KPI_ACCENT[key] ?? 'var(--text-2)'
                   const sparkData = sparkRows.map(r => { const v = getKpiValue(r, key); return typeof v === 'number' ? v : null })
                   return { id: `kpi:${key}`, node: (
@@ -596,6 +623,7 @@ export default function DashboardPage() {
           }}
         />
       )}
+
       </div>
     </div>
   )

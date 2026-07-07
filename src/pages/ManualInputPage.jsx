@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/layout/Sidebar'
 import { postMetrics } from '../services/api'
 import { COMPRESSOR_TYPE_LABEL, getDefaultPressures } from '../utils/format'
-import { useCompressors } from '../hooks/useCompressors'
+import { useCompressors, invalidateCompressorsCache } from '../hooks/useCompressors'
 
 function Field({ label, id, value, onChange, required, optional, assumeText }) {
   const hasVal = value !== ''
@@ -92,6 +92,7 @@ export default function ManualInputPage() {
         evaporator_room_temp_c: pf('roomTemp'),
         condenser_temp_c:       pf('condTemp'),
       })
+      invalidateCompressorsCache()  // ← บอก frontend ให้ refetch รายชื่อ compressor
       setStatus('success')
       setTimeout(() => navigate('/dashboard', { state: { fromInput: compId } }), 400)
     } catch {
