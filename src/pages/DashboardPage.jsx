@@ -11,10 +11,12 @@ import FleetOverview from '../components/dashboard/FleetOverview'
 import { useMetrics } from '../hooks/useMetrics'
 import { useAuth } from '../context/AuthContext'
 import { getPHDiagram } from '../services/api'
-import { COMPRESSORS, COMPRESSOR_TYPE, toLocalDT, formatThaiTime, formatTimeOnly, formatFull, num } from '../utils/format'
+import { toLocalDT, formatThaiTime, formatTimeOnly, formatFull, num } from '../utils/format'
+import { useCompressors } from '../hooks/useCompressors'
 import { cyclePoints, getPHXRange, normalizePHCycle } from '../utils/phDiagram'
 import { CHART_DEFAULTS, mkDs } from '../utils/chartConfig'
-import { KPI_MAP, loadKpiConfig, getKpiValue } from '../utils/kpiConfig'
+import { loadKpiConfig, getKpiValue, getKpiDef } from '../utils/kpiConfig'
+import { loadLayout, saveLayout, resetLayout, orderWidgets } from '../utils/dashboardLayout'
 import { exportCSV, exportXLSX } from '../utils/exportUtils'
 import {
   Chart as ChartJS,
@@ -66,10 +68,8 @@ function getWarn(key, val) {
 export default function DashboardPage() {
   const { user }    = useAuth()
   const location    = useLocation()
-  const [comp, setComp] = useState(() => {
-    const saved = localStorage.getItem('dashboard-comp')
-    return saved === 'OVERVIEW' || COMPRESSORS.includes(saved) ? saved : 'OVERVIEW'
-  })
+  const { ids: compressorIds, typeMap, loading: compLoading } = useCompressors()
+  const [comp, setComp] = useState(() => localStorage.getItem('dashboard-comp') || 'OVERVIEW')
   const [start, setStart]                   = useState('')
   const [end, setEnd]                       = useState('')
   const [connStatus, setConnStatus]         = useState('connecting')
@@ -84,20 +84,16 @@ export default function DashboardPage() {
   const [alarmPopup, setAlarmPopup]         = useState(null)
   const [popupDismissed, setPopupDismissed] = useState(false)
   const [kpiKeys, setKpiKeys]               = useState(() => loadKpiConfig())
-  const [copPanelW, setCopPanelW]           = useState(0)
-  const [secPanelW, setSecPanelW]           = useState(0)
   const [screenW, setScreenW]               = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
 
+  // ── Drag-to-arrange layout ──────────────────────────────────────────────────
+  const [editLayout, setEditLayout]         = useState(false)
+  const [layout, setLayout]                 = useState(() => loadLayout())  // array ของ widget id
+  const dragId                              = useRef(null)                  // widget id ที่กำลังลาก
+
   const reportRef      = useRef(null)
-  const copScrollRef   = useRef(null)
-  const pressScrollRef = useRef(null)
-  const tempScrollRef  = useRef(null)
-  const shScrollRef    = useRef(null)
-  const pwScrollRef    = useRef(null)
-  const copPanelRef    = useRef(null)
   const activeCompRef  = useRef(comp)  // always tracks latest comp for async PH callbacks
   const lastPhIdRef    = useRef(null)  // record _id for which PH was last fetched — prevents refetch on unchanged data
-  const secPanelRef    = useRef(null)
 
   const { records, loading, error, fetch, isPolling } = useMetrics({ pollInterval })
 
@@ -116,20 +112,27 @@ export default function DashboardPage() {
     const fromMonitor = location.state?.comp
     const fromInput   = location.state?.fromInput
     const target = fromInput ?? fromMonitor
-    if (target && COMPRESSORS.includes(target)) handleSelectComp(target)
-  }, [location.state, handleSelectComp])
+    if (target && compressorIds.includes(target)) handleSelectComp(target)
+  }, [location.state, handleSelectComp, compressorIds])
 
-  const doFetch = useCallback((s, e) => {
-    if (comp !== 'OVERVIEW') fetch(comp, s ?? start, e ?? end)
-  }, [comp, start, end, fetch])
-
+  // รอให้รายชื่อ compressor โหลดเสร็จก่อนตัดสินใจ — กัน fetch ด้วย id เก่าที่อาจถูกลบไปแล้ว
+  // (ถ้า valid → ยิง fetch เริ่มต้น, ถ้าไม่ valid แล้ว → กลับไป Overview)
   useEffect(() => {
+    if (compLoading) return
+    if (comp !== 'OVERVIEW' && !compressorIds.includes(comp)) {
+      handleSelectComp('OVERVIEW')
+      return
+    }
     if (comp !== 'OVERVIEW') {
       const now = new Date(), past = new Date(now - 2 * 3600 * 1000)
       const s = toLocalDT(past), e = toLocalDT(now)
       setStart(s); setEnd(e); fetch(comp, s, e)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [compLoading]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const doFetch = useCallback((s, e) => {
+    if (comp !== 'OVERVIEW') fetch(comp, s ?? start, e ?? end)
+  }, [comp, start, end, fetch])
 
   useEffect(() => {
     if (loading)    setConnStatus('connecting')
@@ -179,33 +182,25 @@ export default function DashboardPage() {
   useEffect(() => {
     const handler = () => setKpiKeys(loadKpiConfig())
     window.addEventListener('kpi-config-updated', handler)
+    window.addEventListener('kpi-catalog-updated', handler)
     window.addEventListener('storage', handler)
     return () => {
       window.removeEventListener('kpi-config-updated', handler)
+      window.removeEventListener('kpi-catalog-updated', handler)
       window.removeEventListener('storage', handler)
     }
   }, [])
 
+  // persist layout เมื่อมีการเปลี่ยนแปลง (จาก drag) + sync ข้ามแท็บ
   useEffect(() => {
-    const obs = new ResizeObserver(entries => {
-      for (const e of entries) {
-        if (e.target === copPanelRef.current) setCopPanelW(e.contentRect.width)
-        if (e.target === secPanelRef.current) setSecPanelW(e.contentRect.width)
-      }
-    })
-    if (copPanelRef.current) obs.observe(copPanelRef.current)
-    if (secPanelRef.current) obs.observe(secPanelRef.current)
-    return () => obs.disconnect()
+    const h = () => setLayout(loadLayout())
+    window.addEventListener('dashboard-layout-updated', h)
+    window.addEventListener('storage', h)
+    return () => {
+      window.removeEventListener('dashboard-layout-updated', h)
+      window.removeEventListener('storage', h)
+    }
   }, [])
-
-  useEffect(() => {
-    if (!records.length) return
-    requestAnimationFrame(() => {
-      [copScrollRef, pressScrollRef, tempScrollRef, shScrollRef, pwScrollRef].forEach(r => {
-        if (r.current) r.current.scrollLeft = r.current.scrollWidth
-      })
-    })
-  }, [records])
 
   useEffect(() => {
     const h = () => setScreenW(window.innerWidth)
@@ -286,9 +281,6 @@ export default function DashboardPage() {
     },
   } : { annotations: {} }
 
-  const MAX_CHART_W = 10_000
-  const secW = Math.min(Math.max(rows.length * 20, (isMobile ? secPanelW - 20 : secPanelW / 2 - 20) || 1), MAX_CHART_W)
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg0)' }} >
       <Sidebar connStatus={connStatus} />
@@ -315,8 +307,8 @@ export default function DashboardPage() {
 
       {isMobile && (
         <div className="hide-scrollbar" style={{ display: 'flex', overflowX: 'auto', gap: 6, padding: '8px 12px', background: 'var(--bg1)', borderBottom: '1px solid var(--border)' }}>
-          {['OVERVIEW', ...COMPRESSORS].map(c => {
-            const ctype = COMPRESSOR_TYPE[c]
+          {['OVERVIEW', ...compressorIds].map(c => {
+            const ctype = typeMap[c]
             const typeColor = ctype === 'high_stage' ? 'var(--cyan)' : ctype === 'booster' ? 'var(--green)' : null
             const typeLabel = c === 'COMP-05' ? 'S/W' : ctype === 'high_stage' ? 'H' : ctype === 'booster' ? 'B' : null
             const dotColor = c === 'COMP-05' ? 'var(--amber)' : typeColor
@@ -342,8 +334,8 @@ export default function DashboardPage() {
             >Overview</button>
 
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', padding: '0 16px 10px' }}>Compressor</div>
-            {COMPRESSORS.map(c => {
-              const ctype = COMPRESSOR_TYPE[c]
+            {compressorIds.map(c => {
+              const ctype = typeMap[c]
               const typeColor = ctype === 'high_stage' ? 'var(--cyan)' : ctype === 'booster' ? 'var(--green)' : null
               const typeLabel = ctype === 'high_stage' ? 'High' : ctype === 'booster' ? 'Boost' : null
               const isSW = c === 'COMP-05'
@@ -409,35 +401,75 @@ export default function DashboardPage() {
                   </span>
                 )}
 
-                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0, marginLeft: liveMode ? 8 : 0 }}>
+                  <button onClick={() => setEditLayout(v => !v)} className="btn-ghost"
+                    style={{ fontSize: 10, padding: '3px 8px', border: `1px solid ${editLayout ? 'var(--blue)' : 'var(--border)'}`, color: editLayout ? 'var(--blue)' : 'var(--text-2)', background: editLayout ? 'var(--blue-dim)' : 'var(--bg2)' }}>
+                    {editLayout ? '✓ เสร็จสิ้น' : '⠿ จัดวาง'}
+                  </button>
+                  {editLayout && (
+                    <button onClick={() => { resetLayout(); setEditLayout(false) }} className="btn-ghost"
+                      style={{ fontSize: 10, padding: '3px 8px' }}>↺ รีเซ็ต</button>
+                  )}
                   <button onClick={() => exportCSV(records, csvFilename)} disabled={!records.length} className="btn-ghost" style={{ fontSize: 10, padding: '3px 8px', opacity: records.length ? 1 : 0.4 }}>⬇ CSV</button>
                   <button onClick={() => exportXLSX(records, xlsxFilename, comp)} disabled={!records.length} className="btn-ghost" style={{ fontSize: 10, padding: '3px 8px', opacity: records.length ? 1 : 0.4 }}>⬇ Excel</button>
                 </div>
               </div>
 
-              {/* KPI cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(3, 1fr)' : `repeat(${Math.min(kpiKeys.length, 6)}, 1fr)`, gap: 10 }}>
-                {kpiKeys.map(key => {
-                  const kpi = KPI_MAP[key]
+              {editLayout && (
+                <div style={{ fontSize: 11, color: 'var(--blue)', background: 'var(--blue-dim)', border: '1px solid rgba(88,166,255,0.2)', borderRadius: 8, padding: '7px 12px' }}>
+                  ⠿ โหมดจัดวาง: ลากการ์ด/กราฟไปวางตำแหน่งที่ต้องการได้ทุกจุด — กด "เสร็จสิ้น" เมื่อจัดเสร็จ (ลำดับถูกบันทึกอัตโนมัติ)
+                </div>
+              )}
+
+              {/* Widget grid — ทุก card/chart/panel เป็น widget ที่ลากจัดวางได้อิสระ */}
+              {/* KPI cards — widget เดียวที่ลากจัดวางได้ */}
+              {(() => {
+                const widgets = kpiKeys.map(key => {
+                  const kpi = getKpiDef(key)
                   if (!kpi) return null
-                  const val      = records[0] ? getKpiValue(records[0], key) : null
-                  const warn     = getWarn(key, val)
-                  const col      = KPI_ACCENT[key] ?? 'var(--text-2)'
-                  const sparkData = sparkRows.map(r => {
-                    const v = getKpiValue(r, key)
-                    return typeof v === 'number' ? v : null
-                  })
-                  return (
-                    <KPICard key={key} label={kpi.label} value={val}
-                      unit={kpi.unit} accent={col} warn={warn}
+                  const val = records[0] ? getKpiValue(records[0], key) : null
+                  const col = KPI_ACCENT[key] ?? 'var(--text-2)'
+                  const sparkData = sparkRows.map(r => { const v = getKpiValue(r, key); return typeof v === 'number' ? v : null })
+                  return { id: `kpi:${key}`, node: (
+                    <KPICard label={kpi.label} value={val} unit={kpi.unit} accent={col} warn={getWarn(key, val)}
                       sparkline={<Sparkline data={sparkData} color={col} />} />
-                  )
-                })}
-              </div>
+                  ) }
+                }).filter(Boolean)
+
+                const ordered = orderWidgets(widgets, layout)
+                const onDragOverWidget = (targetId) => {
+                  const from = dragId.current
+                  if (!from || from === targetId) return
+                  const ids = ordered.map(w => w.id)
+                  const fromIdx = ids.indexOf(from), toIdx = ids.indexOf(targetId)
+                  if (fromIdx === -1 || toIdx === -1) return
+                  const next = [...ids]
+                  next.splice(fromIdx, 1)
+                  next.splice(toIdx, 0, from)
+                  setLayout(next)
+                }
+
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(3, 1fr)' : `repeat(${Math.min(ordered.length, 6)}, 1fr)`, gap: 10 }}>
+                    {ordered.map(w => (
+                      <div key={w.id}
+                        draggable={editLayout}
+                        onDragStart={editLayout ? () => { dragId.current = w.id } : undefined}
+                        onDragOver={editLayout ? (e) => { e.preventDefault(); onDragOverWidget(w.id) } : undefined}
+                        onDragEnd={editLayout ? () => { dragId.current = null; saveLayout(ordered.map(x => x.id)) } : undefined}
+                        style={editLayout ? { cursor: 'grab', outline: '2px dashed var(--blue)', outlineOffset: -2, borderRadius: 12, opacity: dragId.current === w.id ? 0.5 : 1 } : null}>
+                        <div style={editLayout ? { pointerEvents: 'none' } : null}>
+                          {w.node}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
 
               {/* COP Trend + P-H Diagram */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px', gap: 14 }}>
-                <div className="panel" style={{ minWidth: 0 }} ref={copPanelRef}>
+                <div className="panel" style={{ minWidth: 0 }}>
                   <div className="panel-header">
                     <span className="panel-title">COP Trend</span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text-2)', fontFamily: 'monospace' }}>
@@ -491,7 +523,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Secondary charts 2×2 */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }} ref={secPanelRef}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }}>
                 {[
                   { title: 'Pressure',              legend: [['SP', 'var(--cyan)'], ['DP', 'var(--red)']], unit: 'kg/cm²', datasets: [mkDs('SP', chartInputs.map(i => num(i.sp_kg)), '#39c5cf'), mkDs('DP', chartInputs.map(i => num(i.dp_kg)), '#f85149')] },
                   { title: 'Temperature',           legend: [['ST', 'var(--cyan)'], ['DT', 'var(--red)'], ['Liquid', 'var(--purple)']], unit: '°C', datasets: [mkDs('ST', chartInputs.map(i => num(i.st_c)), '#39c5cf'), mkDs('DT', chartInputs.map(i => num(i.dt_c)), '#f85149'), mkDs('Liquid', chartInputs.map(i => num(i.liquid_temp_c)), '#a371f7')] },

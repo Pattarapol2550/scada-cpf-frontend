@@ -1,14 +1,14 @@
 import { useState, useRef, useCallback } from 'react'
 import Sidebar from '../components/layout/Sidebar'
 import { bulkImport } from '../services/api'
-import { COMPRESSORS, COMPRESSOR_TYPE } from '../utils/format'
+import { useCompressors } from '../hooks/useCompressors'
 
-// CSV compressor_id (number) → "COMP-01" etc.
-const csvIdToComp = (id) => {
+// CSV compressor_id (number) → "COMP-01" etc. — validIds มาจาก backend (useCompressors)
+const csvIdToComp = (id, validIds) => {
   const n = Number(id)
   if (isNaN(n) || n < 1) return null
   const key = `COMP-${String(n).padStart(2, '0')}`
-  return COMPRESSORS.includes(key) ? key : null
+  return validIds.includes(key) ? key : null
 }
 
 const COMP_TYPE_COLOR = { high_stage: 'var(--cyan)', booster: 'var(--green)', single: 'var(--text-2)' }
@@ -24,8 +24,8 @@ function parseCSV(text) {
   })
 }
 
-function csvRowToPayload(row) {
-  const compressor_id = csvIdToComp(row.compressor_id)
+function csvRowToPayload(row, validIds, typeMap) {
+  const compressor_id = csvIdToComp(row.compressor_id, validIds)
   if (!compressor_id) return null
   const f = (k) => { const v = row[k]; return v === '' || v == null ? null : Number(v) }
   const timestamp = row._time ? new Date(row._time).toISOString() : null
@@ -42,7 +42,7 @@ function csvRowToPayload(row) {
     dt_c:             f('dt'),
     current_amp:      f('amp'),
     liquid_temp_c:    null,
-    compressor_type:  COMPRESSOR_TYPE[compressor_id] ?? 'single',
+    compressor_type:  typeMap[compressor_id] ?? 'single',
     // extra sensor fields
     glycol_temp:      f('glycol_temp'),
     glycol_level:     f('glycol_level'),
@@ -70,8 +70,9 @@ const S = {
 }
 
 export default function ImportPage() {
+  const { ids: compressorIds, typeMap, loading: compLoading } = useCompressors()
   const [parsed,   setParsed]   = useState(null)   // { rows: RawCSVRow[], payloads: Payload[], summary }
-  const [selected, setSelected] = useState(new Set(COMPRESSORS))
+  const [selected, setSelected] = useState(new Set())
   const [status,   setStatus]   = useState(null)   // null | 'importing' | 'done' | 'error'
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [result,   setResult]   = useState(null)
@@ -80,12 +81,13 @@ export default function ImportPage() {
 
   const handleFile = useCallback((file) => {
     if (!file) return
+    if (compLoading) { setErr('กำลังโหลดรายชื่อคอมเพรสเซอร์ กรุณารอสักครู่แล้วลองใหม่'); return }
     setStatus(null); setResult(null); setErr(null); setParsed(null)
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
         const raw = parseCSV(e.target.result)
-        const payloads = raw.map(csvRowToPayload).filter(Boolean)
+        const payloads = raw.map(r => csvRowToPayload(r, compressorIds, typeMap)).filter(Boolean)
         // summary per compressor
         const counts = {}
         payloads.forEach(p => { counts[p.compressor_id] = (counts[p.compressor_id] || 0) + 1 })
@@ -97,7 +99,7 @@ export default function ImportPage() {
       }
     }
     reader.readAsText(file, 'utf-8')
-  }, [])
+  }, [compressorIds, typeMap, compLoading])
 
   const onDrop = (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]) }
   const onPick = (e) => handleFile(e.target.files[0])
@@ -197,7 +199,7 @@ export default function ImportPage() {
               <div style={S.body}>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:8 }}>
                   {Object.entries(parsed.counts).sort().map(([comp, cnt]) => {
-                    const type  = COMPRESSOR_TYPE[comp] ?? 'single'
+                    const type  = typeMap[comp] ?? 'single'
                     const color = COMP_TYPE_COLOR[type]
                     const on    = selected.has(comp)
                     return (
@@ -249,7 +251,7 @@ export default function ImportPage() {
                   </thead>
                   <tbody>
                     {parsed.preview.map((row, i) => {
-                      const mapped = csvIdToComp(row.compressor_id)
+                      const mapped = csvIdToComp(row.compressor_id, compressorIds)
                       return (
                         <tr key={i} style={{ borderBottom:'1px solid var(--border)' }}>
                           {['_time','compressor_id','amp','sp','dp','st','dt'].map(h => (

@@ -2,17 +2,25 @@
  * src/pages/SettingsPage.jsx
  * Layout แบบ sidebar + content panel
  */
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth }  from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useAvatar, resizeImage } from '../hooks/useAvatar'
 import Avatar from '../components/common/Avatar'
-import { ALL_KPI, KPI_MAP, DEFAULT_KPI_KEYS, loadKpiConfig, saveKpiConfig } from '../utils/kpiConfig'
+import {
+  ALL_KPI, DEFAULT_KPI_KEYS, loadKpiConfig, saveKpiConfig,
+  getKpiCatalog, getKpiDef,
+  loadKpiOverrides, saveKpiOverrides, loadHiddenKpiKeys, saveHiddenKpiKeys,
+} from '../utils/kpiConfig'
+import { COMPRESSOR_TYPE_LABEL } from '../utils/format'
+import { invalidateCompressorsCache } from '../hooks/useCompressors'
 import {
   getProfile, updateProfile, changePassword,
   adminGetUsers, adminCreateUser,
   adminToggleActive, adminDeleteUser,
+  adminGetCompressors, adminCreateCompressor,
+  adminUpdateCompressor, adminDeleteCompressor,
 } from '../services/api'
 
 // ── Responsive hook ───────────────────────────────────────────────────────────
@@ -594,6 +602,359 @@ function AdminCreateSection() {
   )
 }
 
+// ── Section: Compressors (create / edit type / delete — เชื่อม backend จริง) ──
+function AdminCompressorsSection() {
+  const [compList, setCompList] = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [saving,   setSaving]   = useState(false)
+  const [form,     setForm]     = useState({ id: '', type: 'booster' })
+  const [editId,   setEditId]   = useState(null)   // id ที่กำลังแก้ type
+  const [editType, setEditType] = useState('')
+  const [toast,    setToast]    = useState({ msg: '', type: '' })
+  const [confirm,  setConfirm]  = useState(null)   // { id } ที่จะลบ
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast({ msg: '', type: '' }), 3000)
+  }
+
+  const loadCompressors = async () => {
+    try {
+      const res = await adminGetCompressors()
+      setCompList(res.data)
+    } catch { showToast('โหลดรายชื่อคอมเพรสเซอร์ไม่สำเร็จ', 'error') }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { loadCompressors() }, [])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const id = form.id.trim().toUpperCase()
+    if (!id) { showToast('กรุณากรอกรหัสคอมเพรสเซอร์', 'error'); return }
+    setSaving(true)
+    try {
+      await adminCreateCompressor({ id, type: form.type })
+      showToast(`สร้าง '${id}' สำเร็จ`)
+      setForm({ id: '', type: 'booster' })
+      invalidateCompressorsCache()
+      loadCompressors()
+    } catch (err) {
+      showToast(err?.response?.data?.detail || 'สร้างไม่สำเร็จ', 'error')
+    } finally { setSaving(false) }
+  }
+
+  const startEdit = (c) => { setEditId(c.id); setEditType(c.type) }
+
+  const saveEdit = async (id) => {
+    try {
+      await adminUpdateCompressor(id, { type: editType })
+      showToast(`แก้ไข '${id}' สำเร็จ`)
+      setEditId(null)
+      invalidateCompressorsCache()
+      loadCompressors()
+    } catch (err) {
+      showToast(err?.response?.data?.detail || 'แก้ไขไม่สำเร็จ', 'error')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm) return
+    try {
+      await adminDeleteCompressor(confirm.id)
+      showToast(`ลบ '${confirm.id}' สำเร็จ`)
+      setConfirm(null)
+      invalidateCompressorsCache()
+      loadCompressors()
+    } catch (err) {
+      showToast(err?.response?.data?.detail || 'ลบไม่สำเร็จ', 'error')
+    }
+  }
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  return (
+    <div>
+      <SectionHeader title="จัดการคอมเพรสเซอร์" desc="เพิ่ม แก้ไขรูปแบบ หรือลบคอมเพรสเซอร์ในระบบ" />
+      <Toast msg={toast.msg} type={toast.type} />
+
+      <form onSubmit={handleSubmit} style={{ maxWidth: 480, marginBottom: 28 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+          <Field label="รหัสคอมเพรสเซอร์">
+            <input value={form.id} onChange={set('id')}
+              required maxLength={20} placeholder="เช่น COMP-08" style={inputStyle} />
+          </Field>
+          <Field label="รูปแบบคอมเพรสเซอร์">
+            <select value={form.type} onChange={set('type')}
+              style={{ ...inputStyle, paddingRight: 32 }}>
+              <option value="booster">Booster</option>
+              <option value="high_stage">High Stage</option>
+              <option value="single">Single Stage</option>
+            </select>
+          </Field>
+        </div>
+        <button type="submit" disabled={saving} className="btn-primary"
+          style={{ padding: '8px 22px', fontSize: 12, opacity: saving ? 0.7 : 1 }}>
+          {saving ? 'กำลังสร้าง…' : '+ สร้างคอมเพรสเซอร์'}
+        </button>
+      </form>
+
+      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 10,
+        textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        คอมเพรสเซอร์ทั้งหมด ({compList.length})
+      </div>
+
+      {loading ? (
+        <div style={{ color: 'var(--text-3)', fontSize: 13 }}>กำลังโหลด…</div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                {['รหัส', 'รูปแบบ', ''].map(h => (
+                  <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-3)', fontWeight: 500, fontSize: 11 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {compList.map(c => (
+                <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '10px 12px', fontWeight: 500, color: 'var(--text-1)', fontFamily: 'JetBrains Mono, monospace' }}>{c.id}</td>
+                  <td style={{ padding: '10px 12px' }}>
+                    {editId === c.id ? (
+                      <select value={editType} onChange={e => setEditType(e.target.value)}
+                        style={{ ...inputStyle, width: 'auto', padding: '4px 8px', fontSize: 11 }}>
+                        <option value="booster">Booster</option>
+                        <option value="high_stage">High Stage</option>
+                        <option value="single">Single Stage</option>
+                      </select>
+                    ) : (
+                      <span style={{
+                        fontSize: 10, padding: '2px 8px', borderRadius: 20,
+                        background: 'var(--bg3)', color: 'var(--text-2)',
+                      }}>{COMPRESSOR_TYPE_LABEL[c.type] || c.type}</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {editId === c.id ? (
+                      <>
+                        <button type="button" onClick={() => saveEdit(c.id)}
+                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, marginRight: 6,
+                            background: 'var(--blue)', border: 'none', color: '#fff', cursor: 'pointer' }}>
+                          บันทึก
+                        </button>
+                        <button type="button" onClick={() => setEditId(null)}
+                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6,
+                            background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer' }}>
+                          ยกเลิก
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => startEdit(c)}
+                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, marginRight: 6,
+                            background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer' }}>
+                          แก้ไข
+                        </button>
+                        <button type="button" onClick={() => setConfirm({ id: c.id })}
+                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6,
+                            background: 'transparent', border: '1px solid var(--red)', color: 'var(--red)', cursor: 'pointer' }}>
+                          ลบ
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Delete confirm */}
+      {confirm && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999,
+        }}>
+          <div style={{
+            background: 'var(--bg1)', border: '1px solid var(--border)',
+            borderRadius: 12, padding: 28, width: 320, textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)', marginBottom: 8 }}>
+              ยืนยันการลบ?
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 20 }}>
+              ลบคอมเพรสเซอร์ <strong>{confirm.id}</strong> ออกจากระบบ<br />
+              <span style={{ color: 'var(--red)', fontSize: 11 }}>ไม่สามารถย้อนกลับได้ (ไม่กระทบข้อมูล metrics เก่า)</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button type="button" onClick={() => setConfirm(null)}
+                className="btn-ghost" style={{ padding: '8px 20px', fontSize: 12 }}>
+                ยกเลิก
+              </button>
+              <button type="button" onClick={handleDelete}
+                style={{
+                  padding: '8px 20px', fontSize: 12, borderRadius: 8,
+                  background: 'var(--red)', color: '#fff',
+                  border: 'none', cursor: 'pointer', fontWeight: 600,
+                }}>
+                ลบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Section: Admin — จัดการ KPI Catalog (ชื่อ/หน่วย/เพิ่ม-ลบ) ─────────────────
+// เก็บใน localStorage เครื่อง admin เท่านั้น ไม่กระทบ user อื่น/เครื่องอื่น
+function AdminKpiCatalogSection() {
+  const [overrides, setOverrides] = useState(() => loadKpiOverrides())
+  const [hidden,    setHidden]    = useState(() => new Set(loadHiddenKpiKeys()))
+  const [draft,     setDraft]     = useState({})   // { [key]: { label, unit } } ระหว่างแก้ไข ยังไม่กด save
+  const [toast,     setToast]     = useState({ msg: '', type: '' })
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast({ msg: '', type: '' }), 2500)
+  }
+
+  const startEdit = (kpi) => {
+    setDraft(d => ({ ...d, [kpi.key]: { label: kpi.label, unit: kpi.unit } }))
+  }
+
+  const setDraftField = (key, field, value) => {
+    setDraft(d => ({ ...d, [key]: { ...d[key], [field]: value } }))
+  }
+
+  const saveEdit = (key) => {
+    const next = { ...overrides, [key]: draft[key] }
+    setOverrides(next)
+    saveKpiOverrides(next)
+    setDraft(d => { const { [key]: _drop, ...rest } = d; return rest })
+    showToast(`บันทึกการแก้ไข '${key}' สำเร็จ`)
+  }
+
+  const cancelEdit = (key) => {
+    setDraft(d => { const { [key]: _drop, ...rest } = d; return rest })
+  }
+
+  const resetOne = (key) => {
+    const next = { ...overrides }
+    delete next[key]
+    setOverrides(next)
+    saveKpiOverrides(next)
+    showToast(`รีเซ็ต '${key}' เป็นค่าเริ่มต้น`)
+  }
+
+  const toggleHidden = (key) => {
+    const next = new Set(hidden)
+    next.has(key) ? next.delete(key) : next.add(key)
+    setHidden(next)
+    saveHiddenKpiKeys([...next])
+    showToast(next.has(key) ? `ซ่อน '${key}' แล้ว` : `เพิ่ม '${key}' กลับมาแล้ว`)
+  }
+
+  const groups = [
+    { id: 'performance', label: 'Performance (คำนวณ)' },
+    { id: 'enthalpy',    label: 'Enthalpy (คำนวณ)'    },
+    { id: 'sensor',      label: 'Sensor Input (วัด)'  },
+    { id: 'extra',       label: 'Extra Sensors (CSV)'  },
+  ]
+
+  return (
+    <div>
+      <SectionHeader
+        title="จัดการ KPI Catalog"
+        desc="ตั้งชื่อ/หน่วยที่แสดงผล และเพิ่ม-ลบ KPI ที่เลือกได้บน Dashboard (ค่าต้องอ้างอิง sensor field ที่มีอยู่จริงเสมอ — บันทึกในเครื่องนี้เท่านั้น)"
+      />
+      <Toast msg={toast.msg} type={toast.type} />
+
+      {groups.map(g => (
+        <div key={g.id} style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)',
+            marginBottom: 8, paddingBottom: 4, borderBottom: '1px solid var(--border)',
+            textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {g.label}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {ALL_KPI.filter(k => k.group === g.id).map(base => {
+              const key       = base.key
+              const isHidden  = hidden.has(key)
+              const override  = overrides[key]
+              const effective = override ? { ...base, ...override } : base
+              const editing   = draft[key]
+
+              return (
+                <div key={key} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 12px', borderRadius: 8,
+                  background: 'var(--bg2)', border: '1px solid var(--border)',
+                  opacity: isHidden ? 0.5 : 1,
+                }}>
+                  <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'JetBrains Mono, monospace', width: 130, flexShrink: 0 }}>
+                    {key}
+                  </span>
+
+                  {editing ? (
+                    <>
+                      <input value={editing.label} onChange={e => setDraftField(key, 'label', e.target.value)}
+                        placeholder="ชื่อที่แสดง" style={{ ...inputStyle, flex: 1, padding: '5px 8px', fontSize: 12 }} />
+                      <input value={editing.unit} onChange={e => setDraftField(key, 'unit', e.target.value)}
+                        placeholder="หน่วย" style={{ ...inputStyle, width: 90, padding: '5px 8px', fontSize: 12 }} />
+                      <button type="button" onClick={() => saveEdit(key)}
+                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, background: 'var(--blue)', border: 'none', color: '#fff', cursor: 'pointer', flexShrink: 0 }}>
+                        บันทึก
+                      </button>
+                      <button type="button" onClick={() => cancelEdit(key)}
+                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0 }}>
+                        ยกเลิก
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>
+                        {effective.label}
+                        {override && <span style={{ fontSize: 9, color: 'var(--blue)', marginLeft: 6 }}>(แก้ไขแล้ว)</span>}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'JetBrains Mono, monospace', width: 60 }}>
+                        {effective.unit}
+                      </span>
+                      <button type="button" onClick={() => startEdit(effective)}
+                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0 }}>
+                        แก้ไข
+                      </button>
+                      {override && (
+                        <button type="button" onClick={() => resetOne(key)}
+                          style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0 }}>
+                          รีเซ็ต
+                        </button>
+                      )}
+                      <button type="button" onClick={() => toggleHidden(key)}
+                        style={{
+                          fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', flexShrink: 0,
+                          background: 'transparent',
+                          border: `1px solid ${isHidden ? 'var(--green)' : 'var(--red)'}`,
+                          color: isHidden ? 'var(--green)' : 'var(--red)',
+                        }}>
+                        {isHidden ? '+ เพิ่มกลับ' : 'ลบ'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function KpiSection() {
   const [selected, setSelected] = useState(() => loadKpiConfig())
   const [toast,    setToast]    = useState({ msg: '', type: '' })
@@ -650,15 +1011,24 @@ function KpiSection() {
   }
  
   const onDragEnd = () => setDragIdx(null)
- 
-  // Group ที่มีใน ALL_KPI
+
+  // รีโหลด catalog เมื่อ admin แก้ไข label/unit/visibility (AdminKpiCatalogSection)
+  const [catalogTick, setCatalogTick] = useState(0)
+  useEffect(() => {
+    const handler = () => setCatalogTick(t => t + 1)
+    window.addEventListener('kpi-catalog-updated', handler)
+    return () => window.removeEventListener('kpi-catalog-updated', handler)
+  }, [])
+  const catalog = useMemo(() => getKpiCatalog(), [catalogTick]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Group ที่มีใน catalog
   const groups = [
     { id: 'performance', label: 'Performance (คำนวณ)' },
     { id: 'enthalpy',    label: 'Enthalpy (คำนวณ)'    },
     { id: 'sensor',      label: 'Sensor Input (วัด)'  },
     { id: 'extra',       label: 'Extra Sensors (CSV)'  },
   ]
- 
+
   return (
     <div>
       <SectionHeader
@@ -666,7 +1036,7 @@ function KpiSection() {
         desc="เลือกค่าที่ต้องการแสดงบน Dashboard และลากเรียงลำดับได้"
       />
       <Toast msg={toast.msg} type={toast.type} />
- 
+
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '1fr 1fr', gap: 20 }}>
 
         {/* ── ซ้าย: เลือกจากทั้งหมด ── */}
@@ -675,7 +1045,7 @@ function KpiSection() {
             textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             ค่าทั้งหมด — คลิกเพื่อเพิ่ม/ลบ
           </div>
- 
+
           {groups.map(g => (
             <div key={g.id} style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)',
@@ -683,7 +1053,7 @@ function KpiSection() {
                 {g.label}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {ALL_KPI.filter(k => k.group === g.id).map(kpi => {
+                {catalog.filter(k => k.group === g.id).map(kpi => {
                   const on = selected.includes(kpi.key)
                   return (
                     <button
@@ -726,7 +1096,7 @@ function KpiSection() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {selected.map((key, idx) => {
-                const kpi = KPI_MAP[key]
+                const kpi = catalog.find(k => k.key === key) ?? getKpiDef(key)
                 if (!kpi) return null
                 const isDragging = dragIdx === idx
                 return (
@@ -814,8 +1184,10 @@ export default function SettingsPage() {
 
   // เมนู admin
   const adminMenus = [
-    { id: 'users',  icon: '', label: 'จัดการผู้ใช้' },
-    { id: 'create', icon: '', label: 'สร้างผู้ใช้' },
+    { id: 'users',       icon: '', label: 'จัดการผู้ใช้' },
+    { id: 'create',      icon: '', label: 'สร้างผู้ใช้' },
+    { id: 'compressors', icon: '', label: 'จัดการคอมเพรสเซอร์' },
+    { id: 'kpi-catalog', icon: '', label: 'จัดการ KPI Catalog' },
   ]
 
   const screenW  = useScreenW()
@@ -921,13 +1293,15 @@ export default function SettingsPage() {
 
       {/* ── Content ── */}
       <div style={{ flex: 1, minWidth: 0, padding: isMobile ? '16px 14px 32px' : '32px 36px', overflowY: 'auto', background: 'var(--bg0)' }}>
-        <div style={{ maxWidth: section === 'kpi' ? 900 : 640 }}>
+        <div style={{ maxWidth: (section === 'kpi' || section === 'kpi-catalog') ? 900 : 640 }}>
           {section === 'profile'  && <ProfileSection profile={profile} onRefresh={loadProfile} />}
           {section === 'password' && <PasswordSection />}
           {section === 'theme'    && <ThemeSection />}
-          {section === 'users'    && <AdminUsersSection />}
-          {section === 'create'   && <AdminCreateSection />}
-          {section === 'kpi'      && <KpiSection />}
+          {section === 'users'       && <AdminUsersSection />}
+          {section === 'create'      && <AdminCreateSection />}
+          {section === 'compressors' && <AdminCompressorsSection />}
+          {section === 'kpi-catalog' && <AdminKpiCatalogSection />}
+          {section === 'kpi'         && <KpiSection />}
         </div>
       </div>
     </div>

@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
 import Sidebar from '../components/layout/Sidebar'
 import { useMetrics } from '../hooks/useMetrics'
-import { COMPRESSORS, toLocalDT, formatThaiTime, formatTimeOnly, num } from '../utils/format'
+import { toLocalDT, formatThaiTime, formatTimeOnly, num } from '../utils/format'
+import { useCompressors } from '../hooks/useCompressors'
 import { exportCSV, exportXLSX } from '../utils/exportUtils'
 import { CHART_DEFAULTS, CHART_TOOLTIP, mkDs } from '../utils/chartConfig'
 import {
@@ -69,7 +70,8 @@ function Pagination({ page, totalPages, onPage }) {
 
 export default function HistoryPage() {
   const location = useLocation()
-  const [comp, setComp]         = useState('COMP-01')
+  const { ids: compressorIds, loading: compLoading } = useCompressors()
+  const [comp, setComp]         = useState('')
   const [liveMode, setLiveMode] = useState(true)
   const [start, setStart]       = useState(() => toLocalDT(new Date(Date.now() - 2 * 3600000)))
   const [end, setEnd]           = useState(() => toLocalDT(new Date()))
@@ -120,16 +122,20 @@ export default function HistoryPage() {
     return () => { clearInterval(timerRef.current); clearInterval(countdownRef.current) }
   }, [liveMode])
 
-  useEffect(() => { doLiveRefresh() }, []) // eslint-disable-line
-  useEffect(() => { if (liveMode) doLiveRefresh() }, [comp]) // eslint-disable-line
+  // ตั้งคอมเพรสเซอร์ตัวแรกเป็นค่าเริ่มต้นทันทีที่โหลดรายชื่อจาก backend เสร็จ
+  useEffect(() => {
+    if (compressorIds.length && !comp) setComp(compressorIds[0])
+  }, [compressorIds]) // eslint-disable-line
+
+  useEffect(() => { if (comp && liveMode) doLiveRefresh() }, [comp]) // eslint-disable-line
 
   // เมื่อ navigate มาจาก ManualInputPage ให้ switch comp + refresh ทันที
   useEffect(() => {
     const fromInput = location.state?.fromInput
-    if (fromInput && COMPRESSORS.includes(fromInput)) {
+    if (fromInput && compressorIds.includes(fromInput)) {
       setComp(fromInput)
     }
-  }, [location.state]) // eslint-disable-line
+  }, [location.state, compressorIds]) // eslint-disable-line
 
   useEffect(() => {
     const obs = new ResizeObserver(entries => {
@@ -171,9 +177,11 @@ export default function HistoryPage() {
         <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)' }}>Compressor</span>
-            <select value={comp} onChange={e => setComp(e.target.value)}
+            <select value={comp} onChange={e => setComp(e.target.value)} disabled={compLoading}
               style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 10px', fontSize: 12, outline: 'none' }}>
-              {COMPRESSORS.map(c => <option key={c}>{c}</option>)}
+              {compLoading
+                ? <option>กำลังโหลด…</option>
+                : compressorIds.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
 

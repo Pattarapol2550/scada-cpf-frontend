@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Bar, Doughnut } from 'react-chartjs-2'
 import { getMetrics } from '../../services/api'
-import { COMPRESSORS, formatThaiTime } from '../../utils/format'
+import { formatThaiTime } from '../../utils/format'
+import { useCompressors } from '../../hooks/useCompressors'
 import CompCard from './CompCard'
 import StatusBadge from './StatusBadge'
 
@@ -43,6 +44,7 @@ function barOpts(annotationY, maxY, unitSuffix, textColor, gridColor) {
 }
 
 export default function FleetOverview({ onSelectComp }) {
+  const { ids: COMPRESSORS, loading: compLoading } = useCompressors()
   const [fleet, setFleet]     = useState({})
   const [loading, setLoading] = useState(true)
   const [screenW, setScreenW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
@@ -55,6 +57,7 @@ export default function FleetOverview({ onSelectComp }) {
   const isTablet = screenW < 1024
 
   const fetchAll = useCallback(async () => {
+    if (!COMPRESSORS.length) return
     try {
       const results = await Promise.all(COMPRESSORS.map(id => getMetrics(id, { limit: 1 }).catch(() => null)))
       const next = {}
@@ -65,9 +68,10 @@ export default function FleetOverview({ onSelectComp }) {
       setFleet(next)
     } catch { /* ignore */ }
     finally { setLoading(false) }
-  }, [])
+  }, [COMPRESSORS])
 
   useEffect(() => {
+    if (compLoading) return
     fetchAll()
     const timer = setInterval(fetchAll, 30_000)
     return () => clearInterval(timer)
@@ -114,7 +118,7 @@ export default function FleetOverview({ onSelectComp }) {
       </div>
 
       {/* Compressor cards */}
-      {loading ? (
+      {loading || compLoading ? (
         <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)', fontSize: 13 }}>กำลังโหลดข้อมูล…</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(4, minmax(0, 1fr))' : 'repeat(7, minmax(0, 1fr))', gap: 8 }}>
@@ -161,14 +165,14 @@ export default function FleetOverview({ onSelectComp }) {
           </div>
           <div style={{ position: 'relative', height: 130, overflow: 'hidden' }}>
             <Doughnut
-              data={{ labels: shortLabels, datasets: [{ data: pwValues, backgroundColor: COMP_COLORS, borderWidth: 0 }] }}
+              data={{ labels: shortLabels, datasets: [{ data: pwValues, backgroundColor: COMPRESSORS.map((_, i) => COMP_COLORS[i % COMP_COLORS.length]), borderWidth: 0 }] }}
               options={{ responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { display: false } }, animation: false }}
             />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 6px', marginTop: 10 }}>
             {COMPRESSORS.map((id, i) => (
               <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-3)' }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: COMP_COLORS[i], flexShrink: 0 }} />
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: COMP_COLORS[i % COMP_COLORS.length], flexShrink: 0 }} />
                 {id.replace('COMP-', 'C')} {n(fleet[id]?.diag?.power_kw)} kW
               </div>
             ))}

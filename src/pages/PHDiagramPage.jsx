@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import Sidebar from '../components/layout/Sidebar'
 import { getMetrics, getPHDiagram } from '../services/api'
 import { cyclePoints, getPHXRange, normalizePHCycle } from '../utils/phDiagram'
-import { COMPRESSORS, toLocalDT } from '../utils/format'
+import { toLocalDT } from '../utils/format'
+import { useCompressors } from '../hooks/useCompressors'
 import { Scatter } from 'react-chartjs-2'
 import { Chart as ChartJS, LinearScale, LogarithmicScale, PointElement, LineElement, Tooltip } from 'chart.js'
 
@@ -20,7 +21,8 @@ function fmtLocalDT(value) {
 }
 
 export default function PHDiagramPage() {
-  const [comp, setComp]           = useState('COMP-01')
+  const { ids: compressorIds, loading: compLoading } = useCompressors()
+  const [comp, setComp]           = useState('')
   const [data, setData]           = useState(null)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState(null)
@@ -59,9 +61,14 @@ export default function PHDiagramPage() {
     finally { setLoading(false) }
   }
 
+  // ตั้งคอมเพรสเซอร์ตัวแรกเป็นค่าเริ่มต้นทันทีที่โหลดรายชื่อจาก backend เสร็จ
+  useEffect(() => {
+    if (compressorIds.length && !comp) setComp(compressorIds[0])
+  }, [compressorIds])
+
   // โหลดอัตโนมัติเมื่อ comp เปลี่ยน หรือสลับ latest ↔ เจาะเวลา
   // ส่ง comp เข้า load ตรงๆ เพื่อให้ได้ค่าล่าสุดเสมอ (ไม่ติด stale closure)
-  useEffect(() => { load(comp) }, [comp, useTimestamp]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (comp) load(comp) }, [comp, useTimestamp]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cycle  = normalizePHCycle(data)
   const dome   = data?.saturation_dome
@@ -290,9 +297,11 @@ export default function PHDiagramPage() {
           {/* Compressor */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)' }}>Compressor</span>
-            <select value={comp} onChange={e => setComp(e.target.value)}
+            <select value={comp} onChange={e => setComp(e.target.value)} disabled={compLoading}
               style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 10px', fontSize: 12, outline: 'none' }}>
-              {COMPRESSORS.map(c => <option key={c}>{c}</option>)}
+              {compLoading
+                ? <option>กำลังโหลด…</option>
+                : compressorIds.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
 

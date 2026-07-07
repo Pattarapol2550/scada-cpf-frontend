@@ -32,6 +32,7 @@ api.interceptors.response.use(
 export const authLogin          = (p) => api.post('/api/auth/login',    p)
 export const authLogout         = ()  => api.post('/api/auth/logout')
 export const authMe             = ()  => api.get('/api/auth/me')
+export const getCompressors     = ()  => api.get('/api/compressors')
 export const authGoogleCallback = (p) => api.post('/api/auth/google/callback', p)
 
 // ── Profile ───────────────────────────────────────────────────────────────────
@@ -44,6 +45,12 @@ export const adminGetUsers     = ()    => api.get('/api/auth/admin/users')
 export const adminCreateUser   = (p)   => api.post('/api/auth/admin/create-user', p)
 export const adminToggleActive = (id)  => api.patch(`/api/auth/admin/users/${id}/active`)
 export const adminDeleteUser   = (id)  => api.delete(`/api/auth/admin/users/${id}`)
+
+// ── Admin · Compressors ────────────────────────────────────────────────────────
+export const adminGetCompressors    = ()     => api.get('/api/auth/admin/compressors')
+export const adminCreateCompressor  = (p)    => api.post('/api/auth/admin/compressors', p)
+export const adminUpdateCompressor  = (id, p) => api.patch(`/api/auth/admin/compressors/${id}`, p)
+export const adminDeleteCompressor  = (id)   => api.delete(`/api/auth/admin/compressors/${id}`)
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
 export const getMetrics   = (compressorId, params = {}) =>

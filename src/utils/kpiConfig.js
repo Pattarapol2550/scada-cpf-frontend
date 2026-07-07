@@ -68,6 +68,46 @@ export function saveKpiConfig(keys) {
   window.dispatchEvent(new Event('kpi-config-updated'))
 }
 
+// ── Admin KPI catalog customization (label/unit/visibility) ───────────────────
+// เก็บใน localStorage เครื่อง admin เท่านั้น — ไม่กระทบ user คนอื่น/เครื่องอื่น
+// "เพิ่ม/ลบ" คือ แสดง/ซ่อนจาก ALL_KPI (ค่าต้องอ้างอิง field ที่มีอยู่จริงเสมอ)
+// "แก้ไข" คือ เปลี่ยน label/unit ที่แสดงผล — ไม่กระทบ source ที่ใช้ดึงค่าจริง
+
+const OVERRIDES_LS_KEY = 'scada-kpi-catalog-overrides'  // { [key]: { label?, unit? } }
+const HIDDEN_LS_KEY    = 'scada-kpi-catalog-hidden'     // string[] keys ที่ถูกซ่อน
+
+export function loadKpiOverrides() {
+  try { return JSON.parse(localStorage.getItem(OVERRIDES_LS_KEY)) || {} } catch { return {} }
+}
+
+export function saveKpiOverrides(overrides) {
+  localStorage.setItem(OVERRIDES_LS_KEY, JSON.stringify(overrides))
+  window.dispatchEvent(new Event('kpi-catalog-updated'))
+}
+
+export function loadHiddenKpiKeys() {
+  try { return JSON.parse(localStorage.getItem(HIDDEN_LS_KEY)) || [] } catch { return [] }
+}
+
+export function saveHiddenKpiKeys(keys) {
+  localStorage.setItem(HIDDEN_LS_KEY, JSON.stringify(keys))
+  window.dispatchEvent(new Event('kpi-catalog-updated'))
+}
+
+/** ALL_KPI หลัง apply label/unit override และกรอง key ที่ถูกซ่อนออก */
+export function getKpiCatalog() {
+  const overrides = loadKpiOverrides()
+  const hidden = new Set(loadHiddenKpiKeys())
+  return ALL_KPI
+    .filter(k => !hidden.has(k.key))
+    .map(k => (overrides[k.key] ? { ...k, ...overrides[k.key] } : k))
+}
+
+/** ตัว def เดียว (พร้อม override) — คืน null ถ้าไม่พบหรือถูกซ่อน */
+export function getKpiDef(key) {
+  return getKpiCatalog().find(k => k.key === key) ?? null
+}
+
 export function getKpiValue(record, kpiKey) {
   if (!record) return null
   const def  = KPI_MAP[kpiKey]

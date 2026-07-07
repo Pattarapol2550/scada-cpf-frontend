@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/layout/Sidebar'
 import { postMetrics } from '../services/api'
-import { COMPRESSORS, COMPRESSOR_TYPE, COMPRESSOR_TYPE_LABEL, getDefaultPressures } from '../utils/format'
+import { COMPRESSOR_TYPE_LABEL, getDefaultPressures } from '../utils/format'
+import { useCompressors } from '../hooks/useCompressors'
 
 function Field({ label, id, value, onChange, required, optional, assumeText }) {
   const hasVal = value !== ''
@@ -51,24 +52,26 @@ function SectionLabel({ label, color }) {
 
 export default function ManualInputPage() {
   const navigate = useNavigate()
-  const initComp = 'COMP-01'
-  const initType = COMPRESSOR_TYPE[initComp]
-  const initPressures = getDefaultPressures(initType)
-  const [compId, setCompId] = useState(initComp)
-  const [compType, setCompType] = useState(initType)
+  const { ids: compressorIds, typeMap, loading: compLoading } = useCompressors()
+  const [compId, setCompId] = useState('')
+  const [compType, setCompType] = useState('single')
   const [form, setForm] = useState({
-    sp: String(initPressures.sp), dp: String(initPressures.dp),
-    st: '', dt: '', liqTemp: '', amp: '', roomTemp: '', condTemp: '',
+    sp: '', dp: '', st: '', dt: '', liqTemp: '', amp: '', roomTemp: '', condTemp: '',
   })
   const [status, setStatus] = useState(null)
 
   const handleCompChange = (id, overrideType) => {
-    const type = overrideType ?? COMPRESSOR_TYPE[id] ?? 'single'
+    const type = overrideType ?? typeMap[id] ?? 'single'
     setCompId(id)
     setCompType(type)
     const { sp, dp } = getDefaultPressures(type)
     setForm(f => ({ ...f, sp: sp !== '' ? String(sp) : '', dp: dp !== '' ? String(dp) : '' }))
   }
+
+  // เลือกคอมเพรสเซอร์ตัวแรกเป็นค่าเริ่มต้นทันทีที่โหลดรายชื่อจาก backend เสร็จ
+  useEffect(() => {
+    if (compressorIds.length && !compId) handleCompChange(compressorIds[0])
+  }, [compressorIds])
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }))
   const pf  = key => form[key] !== '' ? parseFloat(form[key]) : undefined
@@ -110,9 +113,11 @@ export default function ManualInputPage() {
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-2)', marginBottom: 5 }}>Compressor</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select value={compId} onChange={e => handleCompChange(e.target.value)}
+                <select value={compId} onChange={e => handleCompChange(e.target.value)} disabled={compLoading}
                   style={{ flex: 1, padding: '8px 10px', fontSize: 13, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-1)', outline: 'none' }}>
-                  {COMPRESSORS.map(c => <option key={c}>{c}</option>)}
+                  {compLoading
+                    ? <option>กำลังโหลด…</option>
+                    : compressorIds.map(c => <option key={c}>{c}</option>)}
                 </select>
                 {/* Type badge — COMP-05 S/W สามารถ toggle ได้ */}
                 {compId === 'COMP-05' ? (
@@ -166,7 +171,7 @@ export default function ManualInputPage() {
             )}
 
             <button type="submit" className="btn-primary"
-              disabled={status === 'loading'}
+              disabled={status === 'loading' || !compId}
               style={{ width: '100%', padding: 11, fontSize: 13, marginTop: 8, opacity: status === 'loading' ? 0.7 : 1 }}>
               {status === 'loading' ? 'กำลังบันทึก…' : 'Save Data'}
             </button>
