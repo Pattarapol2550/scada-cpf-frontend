@@ -154,13 +154,13 @@ export default function HistoryPage() {
   const diags      = useMemo(() => rows.map(r => r.diagnosis || {}), [rows])
 
   // Downsample for chart only — max 60 points; table uses full rows
+  // linear-interpolated index กัน sliding window (live mode) ทำให้ step เปลี่ยนกะทันหันแล้วกราฟเด้ง
   const { chartLabels, chartDiags, chartTimes } = useMemo(() => {
     const MAX = 60
     if (rows.length <= MAX) return { chartLabels: labels, chartDiags: diags, chartTimes: rows.map(r => r.timestamp) }
-    const step = Math.ceil(rows.length / MAX)
-    const idx = []
-    for (let i = 0; i < rows.length; i += step) idx.push(i)
-    if (idx[idx.length - 1] !== rows.length - 1) idx.push(rows.length - 1)
+    const idx = [...new Set(
+      Array.from({ length: MAX }, (_, i) => Math.round(i * (rows.length - 1) / (MAX - 1)))
+    )]
     return { chartLabels: idx.map(i => labels[i]), chartDiags: idx.map(i => diags[i]), chartTimes: idx.map(i => rows[i].timestamp) }
   }, [rows, labels, diags])
   const totalPages = useMemo(() => Math.max(1, Math.ceil(records.length / ROWS_PER_PAGE)), [records])

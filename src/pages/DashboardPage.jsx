@@ -220,15 +220,16 @@ export default function DashboardPage() {
   const sparkRows = useMemo(() => rows.slice(-20), [rows])
 
   // Downsample for charts — max 60 points for readability; table still uses full rows
+  // ใช้ linear-interpolated index (ไม่ใช่ fixed step) กัน sliding window ทำให้จำนวนจุดขยับ
+  // ทีละ 1 แล้ว step เปลี่ยนค่ากะทันหัน — เดิมทำให้กราฟ "เด้ง" ทุกครั้งที่ poll ข้อมูลใหม่
   const { chartLabels, chartDiags, chartInputs, chartIndexMap } = useMemo(() => {
     const MAX = 60
     if (rows.length <= MAX) {
       return { chartLabels: labels, chartDiags: diags, chartInputs: inputs, chartIndexMap: rows.map((_, i) => i) }
     }
-    const step = Math.ceil(rows.length / MAX)
-    const idx = []
-    for (let i = 0; i < rows.length; i += step) idx.push(i)
-    if (idx[idx.length - 1] !== rows.length - 1) idx.push(rows.length - 1)
+    const idx = [...new Set(
+      Array.from({ length: MAX }, (_, i) => Math.round(i * (rows.length - 1) / (MAX - 1)))
+    )]
     return {
       chartLabels:  idx.map(i => labels[i]),
       chartDiags:   idx.map(i => diags[i]),
