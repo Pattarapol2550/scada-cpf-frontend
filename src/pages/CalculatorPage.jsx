@@ -342,6 +342,8 @@ function SingleStage() {
           ]},
         ]} />
       </>)}
+
+      <SingleFormulas />
     </div>
   )
 }
@@ -502,6 +504,8 @@ function TwoStage() {
           ]},
         ]} />
       </>)}
+
+      <TwoFormulas />
     </div>
   )
 }
@@ -531,14 +535,35 @@ function FormulaSection({ title, color='var(--blue)', children }) {
   )
 }
 
-function FormulasTab() {
+// แถบสูตรแบบพับเก็บได้ — คลิกหัวข้อเพื่อเปิด/ปิด (เริ่มปิดไว้)
+function FormulaPanel({ children }) {
+  const [open, setOpen] = useState(false)
   return (
-    <div>
-      <div style={{ background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'var(--text-2)', lineHeight:1.7 }}>
-        สูตรทั้งหมดด้านล่างนี้ใช้ใน Calculator ทั้ง Single-stage และ Two-stage
-        ค่า thermodynamic properties (h, T_sat, ฯลฯ) คำนวณโดย <span style={{ color:'var(--cyan)', fontFamily:'JetBrains Mono, monospace' }}>CoolProp</span> / <span style={{ color:'var(--cyan)', fontFamily:'JetBrains Mono, monospace' }}>IIR tables</span> ฝั่ง backend
-      </div>
+    <div style={{ marginTop:28 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width:'100%', display:'flex', alignItems:'center', gap:10, cursor:'pointer',
+          background:'transparent', border:'none', padding:0, color:'inherit',
+        }}
+      >
+        <div style={{ flex:1, height:1, background:'var(--border)' }} />
+        <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, color:'var(--text-3)', fontFamily:'JetBrains Mono, monospace', letterSpacing:'0.05em', whiteSpace:'nowrap' }}>
+          📐 สูตรที่ใช้ในการคำนวณ
+          <span style={{ display:'inline-block', transition:'transform 0.2s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', fontSize:10 }}>▶</span>
+        </span>
+        <div style={{ flex:1, height:1, background:'var(--border)' }} />
+      </button>
+      {open && <div style={{ marginTop:14 }}>{children}</div>}
+    </div>
+  )
+}
 
+// สูตรพื้นฐานที่ใช้ทั้งสองโหมด (กำลังไฟ · แรงดัน · superheat/subcool)
+function CommonFormulas() {
+  return (
+    <>
       <FormulaSection title="1 · กำลังไฟฟ้าคอมเพรสเซอร์" color="var(--blue)">
         <FormulaBlock
           label="กำลังไฟ 3-phase"
@@ -576,7 +601,15 @@ function FormulasTab() {
           note="ถ้าไม่กรอก Liquid Temp จะ assume SC = 0 → h3 = hf(P_high)"
         />
       </FormulaSection>
+    </>
+  )
+}
 
+// สูตรเฉพาะ Single-stage (enthalpy จุด 1-4 · สมรรถนะ)
+function SingleFormulas() {
+  return (
+    <FormulaPanel>
+      <CommonFormulas />
       <FormulaSection title="4 · Enthalpy ณ จุดต่างๆ (Single-Stage)" color="var(--purple)">
         <FormulaBlock
           label="h1 — Compressor inlet (superheated vapor)"
@@ -638,7 +671,16 @@ function FormulasTab() {
           note="COP ยิ่งสูงยิ่งดี (ประหยัดพลังงาน)"
         />
       </FormulaSection>
+      <ConstantsFormulas />
+    </FormulaPanel>
+  )
+}
 
+// สูตรเฉพาะ Two-stage (inter-tank · mass flow balance)
+function TwoFormulas() {
+  return (
+    <FormulaPanel>
+      <CommonFormulas />
       <FormulaSection title="6 · Two-Stage — Inter-tank & Mass Flow Balance" color="var(--purple)">
         <FormulaBlock
           label="h3 — Inter-tank exit (saturated vapor @ P_int)"
@@ -661,8 +703,15 @@ function FormulasTab() {
           note="W_total = W_booster + W_high"
         />
       </FormulaSection>
+      <ConstantsFormulas />
+    </FormulaPanel>
+  )
+}
 
-      <FormulaSection title="7 · หน่วยและค่าคงที่ที่ใช้" color="var(--text-3)">
+// ค่าคงที่และหน่วยที่ใช้ (แสดงท้ายสุดทั้งสองโหมด)
+function ConstantsFormulas() {
+  return (
+    <FormulaSection title="7 · หน่วยและค่าคงที่ที่ใช้" color="var(--text-3)">
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:8 }}>
           {[
             ['V (Supply voltage)', '385 V (3-phase)'],
@@ -683,7 +732,6 @@ function FormulasTab() {
           ))}
         </div>
       </FormulaSection>
-    </div>
   )
 }
 
@@ -708,7 +756,7 @@ export default function CalculatorPage() {
             </p>
           </div>
           <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-            {[['single','Single-stage','var(--blue)'],['two','Two-stage','var(--purple)'],['formulas','Formulas','var(--cyan)']].map(([id, label, color]) => (
+            {[['single','Single-stage','var(--blue)'],['two','Two-stage','var(--purple)']].map(([id, label, color]) => (
               <button key={id} onClick={() => setTab(id)}
                 style={{ fontFamily:'JetBrains Mono, monospace', fontSize:12, padding:'7px 18px', borderRadius:7, cursor:'pointer',
                   border:`1px solid ${tab===id ? 'transparent' : 'var(--border)'}`,
@@ -723,7 +771,6 @@ export default function CalculatorPage() {
 
         {tab === 'single'   && <SingleStage />}
         {tab === 'two'      && <TwoStage />}
-        {tab === 'formulas' && <FormulasTab />}
       </div>
     </div>
   )

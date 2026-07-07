@@ -148,14 +148,14 @@ export default function HistoryPage() {
   const diags      = useMemo(() => rows.map(r => r.diagnosis || {}), [rows])
 
   // Downsample for chart only — max 60 points; table uses full rows
-  const { chartLabels, chartDiags } = useMemo(() => {
+  const { chartLabels, chartDiags, chartTimes } = useMemo(() => {
     const MAX = 60
-    if (rows.length <= MAX) return { chartLabels: labels, chartDiags: diags }
+    if (rows.length <= MAX) return { chartLabels: labels, chartDiags: diags, chartTimes: rows.map(r => r.timestamp) }
     const step = Math.ceil(rows.length / MAX)
     const idx = []
     for (let i = 0; i < rows.length; i += step) idx.push(i)
     if (idx[idx.length - 1] !== rows.length - 1) idx.push(rows.length - 1)
-    return { chartLabels: idx.map(i => labels[i]), chartDiags: idx.map(i => diags[i]) }
+    return { chartLabels: idx.map(i => labels[i]), chartDiags: idx.map(i => diags[i]), chartTimes: idx.map(i => rows[i].timestamp) }
   }, [rows, labels, diags])
   const totalPages = useMemo(() => Math.max(1, Math.ceil(records.length / ROWS_PER_PAGE)), [records])
   const pageRows   = useMemo(() => records.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE), [records, page])
@@ -229,6 +229,7 @@ export default function HistoryPage() {
           ) : (
             <div style={{ position: 'relative', height: 180, padding: '0 4px 4px' }}>
               <ZoomableChart
+                timestamps={chartTimes}
                 data={{ labels: chartLabels, datasets: [mkDs('COP', chartDiags.map(d => num(d.cop)), '#3fb950')] }}
                 options={{ ...CHART_OPT, responsive: true, maintainAspectRatio: false }}
               />

@@ -453,6 +453,7 @@ export default function DashboardPage() {
                   ) : (
                     <div style={{ position: 'relative', height: 220, padding: '0 4px 4px' }}>
                       <ZoomableChart
+                        timestamps={chartInputs.map(r => r.timestamp)}
                         data={{ labels: chartLabels, datasets: [mkDs('COP', chartDiags.map(d => num(d.cop)), '#3fb950')] }}
                         options={{
                           ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: false,
@@ -510,6 +511,7 @@ export default function DashboardPage() {
                     </div>
                     <div style={{ position: 'relative', height: 160, padding: '0 4px 4px' }}>
                       <ZoomableChart
+                        timestamps={chartInputs.map(r => r.timestamp)}
                         data={{ labels: chartLabels, datasets }}
                         options={{ ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: false, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, title: { display: true, text: unit, color: '#8b949e', font: { size: 9 } } } } }}
                       />
