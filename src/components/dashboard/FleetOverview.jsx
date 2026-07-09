@@ -6,6 +6,7 @@ import { useCompressors } from '../../hooks/useCompressors'
 import { STALE_THRESHOLD_SEC } from '../../utils/staleConfig'
 import CompCard from './CompCard'
 import StatusBadge from './StatusBadge'
+import CompressorTrendChart from './CompressorTrendChart'
 
 const COMP_COLORS = ['#378add','#1d9e75','#ba7517','#534ab7','#d4537e','#854f0b','#a32d2d']
 
@@ -163,6 +164,11 @@ export default function FleetOverview({ onSelectComp }) {
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(4, minmax(0, 1fr))' : 'repeat(7, minmax(0, 1fr))', gap: 8 }}>
           {compData.map(c => <CompCard key={c.id} id={c.id} type={typeMap[c.id]} diag={c.diag} ts={c.ts} stale={c.stale} staleSeconds={c.staleSeconds} onClick={onSelectComp} isMobile={isMobile} />)}
         </div>
+      )}
+
+      {/* Trend overview — pick a compressor, a date range (up to 7 days), and any metric */}
+      {!loading && !compLoading && COMPRESSORS.length > 0 && (
+        <CompressorTrendChart compressors={COMPRESSORS} typeMap={typeMap} defaultId={COMPRESSORS[0]} />
       )}
 
       {/* Charts row */}
