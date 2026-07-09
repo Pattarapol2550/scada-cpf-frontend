@@ -13,6 +13,7 @@ export default function StatusBadge({ severity }) {
       fontSize: 10, fontWeight: 600,
       padding: '2px 7px', borderRadius: 20,
       background: s.bg, color: s.color,
+      whiteSpace: 'nowrap', flexShrink: 0, maxWidth: '100%',
     }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
       {s.label}

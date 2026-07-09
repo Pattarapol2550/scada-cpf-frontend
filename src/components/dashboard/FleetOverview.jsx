@@ -56,7 +56,7 @@ function barOpts(annotationY, maxY, unitSuffix, textColor, gridColor) {
 }
 
 export default function FleetOverview({ onSelectComp }) {
-  const { ids: COMPRESSORS, loading: compLoading } = useCompressors()
+  const { ids: COMPRESSORS, typeMap, loading: compLoading } = useCompressors()
   const [fleet, setFleet]     = useState({})
   const [loading, setLoading] = useState(true)
   const [screenW, setScreenW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
@@ -161,7 +161,7 @@ export default function FleetOverview({ onSelectComp }) {
         <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)', fontSize: 13 }}>กำลังโหลดข้อมูล…</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(4, minmax(0, 1fr))' : 'repeat(7, minmax(0, 1fr))', gap: 8 }}>
-          {compData.map(c => <CompCard key={c.id} id={c.id} diag={c.diag} ts={c.ts} stale={c.stale} staleSeconds={c.staleSeconds} onClick={onSelectComp} isMobile={isMobile} />)}
+          {compData.map(c => <CompCard key={c.id} id={c.id} type={typeMap[c.id]} diag={c.diag} ts={c.ts} stale={c.stale} staleSeconds={c.staleSeconds} onClick={onSelectComp} isMobile={isMobile} />)}
         </div>
       )}
 
@@ -222,10 +222,10 @@ export default function FleetOverview({ onSelectComp }) {
       {/* Alarm table */}
       {allAlarms.length > 0 ? (
         <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Active alarms</div>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'rgba(163,45,45,0.12)', color: 'var(--red)' }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--red)' }} />{allAlarms.length} active
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Active alarms</div>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'rgba(163,45,45,0.12)', color: 'var(--red)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--red)', flexShrink: 0 }} />{allAlarms.length} active
             </span>
           </div>
           {isMobile ? (

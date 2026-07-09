@@ -14,8 +14,9 @@ function warnColor(v, lo, hi, hasCrit) {
 const TYPE_COLOR = { booster: 'var(--green)', high_stage: 'var(--cyan)', single: 'var(--text-3)' }
 const TYPE_LABEL = { booster: 'Booster', high_stage: 'High Stage', single: '' }
 
-export default function CompCard({ id, diag, ts, stale, staleSeconds, onClick, isMobile }) {
+export default function CompCard({ id, type, diag, ts, stale, staleSeconds, onClick, isMobile }) {
   const d = diag || {}
+  const compType   = type ?? d.compressor_type
   const alarms     = d.alarms || []
   const hasCrit    = alarms.some(a => a.severity === 'Critical')
   const hasWarn    = alarms.some(a => a.severity === 'Warning') || stale
@@ -45,9 +46,9 @@ export default function CompCard({ id, diag, ts, stale, staleSeconds, onClick, i
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: isMobile ? 13 : 12, fontWeight: 700, color: 'var(--text-1)' }}>{id}</span>
-          {d.compressor_type && d.compressor_type !== 'single' && (
-            <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 4, color: TYPE_COLOR[d.compressor_type], background: `${TYPE_COLOR[d.compressor_type]}1a` }}>
-              {TYPE_LABEL[d.compressor_type]}
+          {compType && compType !== 'single' && (
+            <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 4, color: TYPE_COLOR[compType], background: `${TYPE_COLOR[compType]}1a` }}>
+              {TYPE_LABEL[compType]}
             </span>
           )}
         </div>
