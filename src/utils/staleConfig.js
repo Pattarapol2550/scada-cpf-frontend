@@ -3,7 +3,7 @@
  * ใช้ร่วมกันทั้ง DashboardPage (per-compressor detail) และ FleetOverview (Overview tab)
  * ปรับตัวเลขนี้ที่เดียวถ้าต้องการเปลี่ยนเวลาในอนาคต
  */
-export const STALE_THRESHOLD_SEC = 60
+export const STALE_THRESHOLD_SEC = 300
 
 export function formatStaleDuration(sec) {
   const h = Math.floor(sec / 3600)

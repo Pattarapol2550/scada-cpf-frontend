@@ -316,7 +316,7 @@ export default function DashboardPage() {
 
       {staleCompsList.length > 0 && (
         <div style={{ padding: '7px 20px', fontSize: 12, fontWeight: 500, background: 'var(--amber-dim)', borderBottom: '1px solid rgba(210,153,34,0.3)', color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          ⚠️ ตรวจสอบเซนเซอร์ — {staleCompsList.join(', ')} ไม่ได้รับค่า > 1 นาที
+          ⚠️ ตรวจสอบเซนเซอร์ — {staleCompsList.join(', ')} ไม่ได้รับค่าเกิน 5 นาที
         </div>
       )}
 
