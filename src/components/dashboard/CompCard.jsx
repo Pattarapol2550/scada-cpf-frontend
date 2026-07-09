@@ -7,7 +7,7 @@ function val(v, dec = 2, unit = '') {
 
 function warnColor(v, lo, hi, hasCrit) {
   const n = Number(v); if (isNaN(n)) return 'var(--text-1)'
-  if (n < lo || n > hi) return hasCrit ? '#a32d2d' : '#854f0b'
+  if (n < lo || n > hi) return hasCrit ? 'var(--red)' : 'var(--amber)'
   return 'var(--text-1)'
 }
 
@@ -77,14 +77,14 @@ export default function CompCard({ id, diag, ts, stale, staleSeconds, onClick, i
       {alarms.length > 0 && (
         <div style={{ marginTop: 8 }}>
           {alarms.slice(0, 2).map((a, i) => (
-            <div key={i} style={{ fontSize: 10, color: a.severity === 'Critical' ? '#a32d2d' : '#854f0b', background: a.severity === 'Critical' ? 'rgba(163,45,45,0.08)' : 'rgba(133,79,11,0.08)', borderRadius: 5, padding: '3px 7px', marginTop: 3 }}>
+            <div key={i} style={{ fontSize: 10, color: a.severity === 'Critical' ? 'var(--red)' : 'var(--amber)', background: a.severity === 'Critical' ? 'rgba(163,45,45,0.08)' : 'rgba(133,79,11,0.08)', borderRadius: 5, padding: '3px 7px', marginTop: 3 }}>
               {a.title}
             </div>
           ))}
         </div>
       )}
       {stale && (
-        <div style={{ fontSize: 10, color: '#854f0b', background: 'rgba(133,79,11,0.08)', borderRadius: 5, padding: '3px 7px', marginTop: 3 }}>
+        <div style={{ fontSize: 10, color: 'var(--amber)', background: 'rgba(133,79,11,0.08)', borderRadius: 5, padding: '3px 7px', marginTop: 3 }}>
           ⚠ ตรวจสอบเซนเซอร์
         </div>
       )}

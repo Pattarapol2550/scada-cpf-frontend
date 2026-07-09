@@ -138,9 +138,9 @@ export default function FleetOverview({ onSelectComp }) {
 
   const fleetKpis = useMemo(() => [
     { label: 'Total power',   value: totalPower ? `${totalPower.toFixed(1)} kW` : '--', sub: 'ทุก compressor รวมกัน', color: 'var(--text-1)' },
-    { label: 'Fleet avg COP', value: avgCop ? avgCop.toFixed(2) : '--', sub: 'target ≥ 1.5', color: avgCop && avgCop >= COP_THRESHOLD ? '#27500a' : '#a32d2d' },
+    { label: 'Fleet avg COP', value: avgCop ? avgCop.toFixed(2) : '--', sub: 'target ≥ 1.5', color: avgCop && avgCop >= COP_THRESHOLD ? 'var(--green)' : 'var(--red)' },
     { label: 'Total cooling', value: totalQe ? `${totalQe.toFixed(1)} kW` : '--', sub: 'Q_e รวมทั้งระบบ', color: 'var(--text-1)' },
-    { label: 'Active alarms', value: critCount + warnCount, sub: `${critCount} critical · ${warnCount} warning`, color: (critCount + warnCount) > 0 ? '#a32d2d' : 'var(--text-1)', borderAlert: (critCount + warnCount) > 0 },
+    { label: 'Active alarms', value: critCount + warnCount, sub: `${critCount} critical · ${warnCount} warning`, color: (critCount + warnCount) > 0 ? 'var(--red)' : 'var(--text-1)', borderAlert: (critCount + warnCount) > 0 },
   ], [totalPower, avgCop, totalQe, critCount, warnCount])
 
   return (
@@ -224,8 +224,8 @@ export default function FleetOverview({ onSelectComp }) {
         <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Active alarms</div>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'rgba(163,45,45,0.12)', color: '#a32d2d' }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#a32d2d' }} />{allAlarms.length} active
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'rgba(163,45,45,0.12)', color: 'var(--red)' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--red)' }} />{allAlarms.length} active
             </span>
           </div>
           {isMobile ? (

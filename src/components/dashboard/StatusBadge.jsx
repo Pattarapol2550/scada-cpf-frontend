@@ -1,7 +1,7 @@
 const STATUS_MAP = {
-  Critical: { bg: 'rgba(163,45,45,0.12)', color: '#a32d2d', dot: '#a32d2d', label: 'Critical' },
-  Warning:  { bg: 'rgba(133,79,11,0.12)', color: '#854f0b', dot: '#854f0b', label: 'Warning'  },
-  Normal:   { bg: 'rgba(63,185,80,0.12)', color: '#27500a', dot: '#639922', label: 'Normal'   },
+  Critical: { bg: 'var(--red-dim)', color: 'var(--red)', dot: 'var(--red)', label: 'Critical' },
+  Warning:  { bg: 'var(--amber-dim)', color: 'var(--amber)', dot: 'var(--amber)', label: 'Warning'  },
+  Normal:   { bg: 'var(--green-dim)', color: 'var(--green)', dot: 'var(--green)', label: 'Normal'   },
   '--':     { bg: 'var(--bg3)',           color: 'var(--text-3)', dot: 'var(--text-3)', label: 'No data' },
 }
 
