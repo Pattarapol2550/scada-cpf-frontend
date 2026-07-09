@@ -9,6 +9,17 @@ import StatusBadge from './StatusBadge'
 
 const COMP_COLORS = ['#378add','#1d9e75','#ba7517','#534ab7','#d4537e','#854f0b','#a32d2d']
 
+const COLOR_BLUE = '#378add'
+const COLOR_RED = '#e24b4a'
+const COLOR_GREEN = '#1d9e75'
+const COLOR_ORANGE = '#f0883e'
+
+const COP_THRESHOLD = 1.5
+const SUPERHEAT_MIN = 2
+const SUPERHEAT_MAX = 15
+
+const n = (v, d = 1) => v ? Number(v).toFixed(d) : '--'
+
 function LegendItem({ color, label }) {
   return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-3)' }}>
@@ -116,7 +127,7 @@ export default function FleetOverview({ onSelectComp }) {
   const isDark     = document.documentElement.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches
   const textColor  = isDark ? '#999' : '#888'
   const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
-  const shortLabels = COMPRESSORS.map(id => id.replace('COMP-', 'C'))
+  const shortLabels = useMemo(() => COMPRESSORS.map(id => id.replace('COMP-', 'C')), [COMPRESSORS])
 
   // chart data — useMemo เพื่อไม่ recalculate ทุก render
   const { copValues, shValues, pwValues } = useMemo(() => ({
@@ -125,11 +136,9 @@ export default function FleetOverview({ onSelectComp }) {
     pwValues:  COMPRESSORS.map(id => Number(fleet[id]?.diag?.power_kw) || 0),
   }), [COMPRESSORS, fleet])
 
-  const n = (v, d = 1) => v ? Number(v).toFixed(d) : '--'
-
   const fleetKpis = useMemo(() => [
     { label: 'Total power',   value: totalPower ? `${totalPower.toFixed(1)} kW` : '--', sub: 'ทุก compressor รวมกัน', color: 'var(--text-1)' },
-    { label: 'Fleet avg COP', value: avgCop ? avgCop.toFixed(2) : '--', sub: 'target ≥ 1.5', color: avgCop && avgCop >= 1.5 ? '#27500a' : '#a32d2d' },
+    { label: 'Fleet avg COP', value: avgCop ? avgCop.toFixed(2) : '--', sub: 'target ≥ 1.5', color: avgCop && avgCop >= COP_THRESHOLD ? '#27500a' : '#a32d2d' },
     { label: 'Total cooling', value: totalQe ? `${totalQe.toFixed(1)} kW` : '--', sub: 'Q_e รวมทั้งระบบ', color: 'var(--text-1)' },
     { label: 'Active alarms', value: critCount + warnCount, sub: `${critCount} critical · ${warnCount} warning`, color: (critCount + warnCount) > 0 ? '#a32d2d' : 'var(--text-1)', borderAlert: (critCount + warnCount) > 0 },
   ], [totalPower, avgCop, totalQe, critCount, warnCount])
@@ -161,14 +170,14 @@ export default function FleetOverview({ onSelectComp }) {
         <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', minWidth: 0 }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>COP comparison</div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-            <LegendItem color="#378add" label="≥ 1.5 — ปกติ" />
-            <LegendItem color="#e24b4a" label="< 1.5 — ต่ำ" />
-            <LegendItem color="#e24b4a" label="── threshold 1.5" />
+            <LegendItem color={COLOR_BLUE} label="≥ 1.5 — ปกติ" />
+            <LegendItem color={COLOR_RED} label="< 1.5 — ต่ำ" />
+            <LegendItem color={COLOR_RED} label="── threshold 1.5" />
           </div>
           <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}>
             <Bar
-              data={{ labels: shortLabels, datasets: [{ label: 'COP', data: copValues, backgroundColor: copValues.map(v => v === null ? '#888' : v >= 1.5 ? '#378add' : '#e24b4a'), borderRadius: 4, barPercentage: 0.65 }] }}
-              options={barOpts(1.5, Math.max(3, ...copValues.filter(Boolean)) * 1.15, '', textColor, gridColor)}
+              data={{ labels: shortLabels, datasets: [{ label: 'COP', data: copValues, backgroundColor: copValues.map(v => v === null ? '#888' : v >= COP_THRESHOLD ? COLOR_BLUE : COLOR_RED), borderRadius: 4, barPercentage: 0.65 }] }}
+              options={barOpts(COP_THRESHOLD, Math.max(3, ...copValues.filter(Boolean)) * 1.15, '', textColor, gridColor)}
             />
           </div>
         </div>
@@ -176,14 +185,14 @@ export default function FleetOverview({ onSelectComp }) {
         <div style={{ background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', minWidth: 0 }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Superheat (K)</div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-            <LegendItem color="#1d9e75" label="2–15 K — ปกติ" />
-            <LegendItem color="#f0883e" label="< 2 K — ต่ำ" />
-            <LegendItem color="#e24b4a" label="> 15 K — สูง" />
+            <LegendItem color={COLOR_GREEN} label="2–15 K — ปกติ" />
+            <LegendItem color={COLOR_ORANGE} label="< 2 K — ต่ำ" />
+            <LegendItem color={COLOR_RED} label="> 15 K — สูง" />
           </div>
           <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}>
             <Bar
-              data={{ labels: shortLabels, datasets: [{ label: 'Superheat (K)', data: shValues, backgroundColor: shValues.map(v => v === null ? '#888' : v > 15 ? '#e24b4a' : v < 2 ? '#f0883e' : '#1d9e75'), borderRadius: 4, barPercentage: 0.65 }] }}
-              options={barOpts(15, Math.max(20, ...shValues.filter(Boolean)) + 2, ' K', textColor, gridColor)}
+              data={{ labels: shortLabels, datasets: [{ label: 'Superheat (K)', data: shValues, backgroundColor: shValues.map(v => v === null ? '#888' : v > SUPERHEAT_MAX ? COLOR_RED : v < SUPERHEAT_MIN ? COLOR_ORANGE : COLOR_GREEN), borderRadius: 4, barPercentage: 0.65 }] }}
+              options={barOpts(SUPERHEAT_MAX, Math.max(20, ...shValues.filter(Boolean)) + 2, ' K', textColor, gridColor)}
             />
           </div>
         </div>
