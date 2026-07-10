@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   const target =
     env.VITE_LOCAL_API ||
     env.VITE_API_URL ||
-    'https://cpfbackend2-0.onrender.com'
+    'https://cpfbackend-se-asia.onrender.com'
 
   return {
     plugins: [
@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => {
       },
       headers: {
         'Content-Security-Policy':
-          "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: https://lh3.googleusercontent.com https://www.gstatic.com; connect-src 'self' https://accounts.google.com https://cpfbackend2-0.onrender.com https://cdn.jsdelivr.net; form-action 'self'; frame-ancestors 'none'",
+          "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: https://lh3.googleusercontent.com https://www.gstatic.com; connect-src 'self' https://accounts.google.com https://cpfbackend-se-asia.onrender.com https://cdn.jsdelivr.net; form-action 'self'; frame-ancestors 'none'",
         'X-Frame-Options': 'DENY',
         'X-Content-Type-Options': 'nosniff',
         'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
