@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://cpfbackend2-0.onrender.com/api/:path*"
+      "destination": "https://cpfbackend-se-asia.onrender.com/api/:path*"
     },
     {
       "source": "/health",
-      "destination": "https://cpfbackend2-0.onrender.com/health"
+      "destination": "https://cpfbackend-se-asia.onrender.com/health"
     },
     {
       "source": "/((?!api/|health).*)",

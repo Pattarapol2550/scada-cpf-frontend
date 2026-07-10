@@ -73,13 +73,23 @@ export default function FleetOverview({ onSelectComp }) {
   const fetchAll = useCallback(async () => {
     if (!COMPRESSORS.length) return
     try {
+      // null = this compressor's request failed (network/5xx/timeout), not "no data ever"
       const results = await Promise.all(COMPRESSORS.map(id => getMetrics(id, { limit: 1 }).catch(() => null)))
-      const next = {}
-      COMPRESSORS.forEach((id, idx) => {
-        const data = results[idx]?.data?.[0]
-        next[id] = { diag: data?.diagnosis || null, ts: data?.timestamp || null }
+      setFleet(prev => {
+        const next = {}
+        COMPRESSORS.forEach((id, idx) => {
+          const res = results[idx]
+          if (res === null) {
+            // fetch failed this round — keep last known ts/diag so stale detection
+            // (based on how old that ts is) keeps working instead of resetting to "no data"
+            next[id] = prev[id] || { diag: null, ts: null }
+            return
+          }
+          const data = res?.data?.[0]
+          next[id] = { diag: data?.diagnosis || null, ts: data?.timestamp || null }
+        })
+        return next
       })
-      setFleet(next)
     } catch { /* ignore */ }
     finally { setLoading(false) }
   }, [COMPRESSORS])
@@ -96,7 +106,9 @@ export default function FleetOverview({ onSelectComp }) {
   const { compData, allAlarms, critCount, warnCount, totalPower, totalQe, avgCop } = useMemo(() => {
     const data = COMPRESSORS.map(id => {
       const c = { id, ...fleet[id] }
-      const staleSeconds = c.ts ? Math.floor((Date.now() - new Date(c.ts).getTime()) / 1000) : null
+      const tsMs = c.ts ? new Date(c.ts).getTime() : NaN
+      // an unparseable timestamp must not silently read as "not stale" — treat it as stale instead
+      const staleSeconds = c.ts ? (Number.isFinite(tsMs) ? Math.floor((Date.now() - tsMs) / 1000) : Infinity) : null
       const stale = staleSeconds !== null && staleSeconds > STALE_THRESHOLD_SEC
       return { ...c, staleSeconds, stale }
     })
