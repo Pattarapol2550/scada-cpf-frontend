@@ -4,59 +4,119 @@ import { getMetrics } from '../../services/api'
 
 // --- Metric registry -------------------------------------------------------
 // accessor reads the value off a raw /api/metrics record (flat fields + nested diagnosis.*)
+// Line style (dash pattern) is assigned per-group below so lines from the same
+// group share a pattern — a secondary visual cue on top of color.
 const METRIC_GROUPS = [
   {
     group: 'Performance',
+    dash: [],
     metrics: [
-      { key: 'cop', label: 'COP', unit: '', color: '#22c55e', get: r => r.diagnosis?.cop },
-      { key: 'power_kw', label: 'Power', unit: 'kW', color: '#f97316', get: r => r.diagnosis?.power_kw },
-      { key: 'q_e_kw', label: 'Cooling Q_e', unit: 'kW', color: '#fb923c', get: r => r.diagnosis?.q_e_kw },
-      { key: 'm_dot_kgh', label: 'Mass flow', unit: 'kg/h', color: '#a3e635', get: r => r.diagnosis?.m_dot_kgh },
-      { key: 'pressure_ratio', label: 'Pressure ratio', unit: '', color: '#4ade80', get: r => r.diagnosis?.pressure_ratio },
-      { key: 'superheat_suc', label: 'Superheat (SH)', unit: 'K', color: '#2dd4bf', get: r => r.diagnosis?.superheat_suc },
-      { key: 'subcooling', label: 'Subcooling (SC)', unit: 'K', color: '#14b8a6', get: r => r.diagnosis?.subcooling },
+      { key: 'cop', label: 'COP', unit: '', get: r => r.diagnosis?.cop },
+      { key: 'power_kw', label: 'Power', unit: 'kW', get: r => r.diagnosis?.power_kw },
+      { key: 'q_e_kw', label: 'Cooling Q_e', unit: 'kW', get: r => r.diagnosis?.q_e_kw },
+      { key: 'm_dot_kgh', label: 'Mass flow', unit: 'kg/h', get: r => r.diagnosis?.m_dot_kgh },
+      { key: 'pressure_ratio', label: 'Pressure ratio', unit: '', get: r => r.diagnosis?.pressure_ratio },
+      { key: 'superheat_suc', label: 'Superheat (SH)', unit: 'K', get: r => r.diagnosis?.superheat_suc },
+      { key: 'subcooling', label: 'Subcooling (SC)', unit: 'K', get: r => r.diagnosis?.subcooling },
     ],
   },
   {
     group: 'Cycle / Enthalpy',
+    dash:[8, 4],
     metrics: [
-      { key: 't_evap_c', label: 'Evap temp', unit: '°C', color: '#38bdf8', get: r => r.diagnosis?.enthalpy?.t_evap_c },
-      { key: 't_cond_c', label: 'Cond temp', unit: '°C', color: '#f472b6', get: r => r.diagnosis?.enthalpy?.t_cond_c },
-      { key: 'eta_is_pct', label: 'Isentropic η', unit: '%', color: '#c084fc', get: r => r.diagnosis?.enthalpy?.eta_is_pct },
-      { key: 'q_l_kjkg', label: 'Refrig. effect', unit: 'kJ/kg', color: '#818cf8', get: r => r.diagnosis?.enthalpy?.q_l_kjkg },
-      { key: 'w_comp_kjkg', label: 'Comp. work', unit: 'kJ/kg', color: '#6366f1', get: r => r.diagnosis?.enthalpy?.w_comp_kjkg },
+      { key: 't_evap_c', label: 'Evap temp', unit: '°C', get: r => r.diagnosis?.enthalpy?.t_evap_c },
+      { key: 't_cond_c', label: 'Cond temp', unit: '°C', get: r => r.diagnosis?.enthalpy?.t_cond_c },
+      { key: 'eta_is_pct', label: 'Isentropic η', unit: '%', get: r => r.diagnosis?.enthalpy?.eta_is_pct },
+      { key: 'q_l_kjkg', label: 'Refrig. effect', unit: 'kJ/kg', get: r => r.diagnosis?.enthalpy?.q_l_kjkg },
+      { key: 'w_comp_kjkg', label: 'Comp. work', unit: 'kJ/kg', get: r => r.diagnosis?.enthalpy?.w_comp_kjkg },
     ],
   },
   {
     group: 'Pressures',
+    dash: [3, 3],
     metrics: [
-      { key: 'sp_kg', label: 'Suction P (SP)', unit: 'kg/cm²', color: '#facc15', get: r => r.sp_kg },
-      { key: 'dp_kg', label: 'Discharge P (DP)', unit: 'kg/cm²', color: '#eab308', get: r => r.dp_kg },
-      { key: 'oil_pressure', label: 'Oil pressure', unit: 'kg/cm²', color: '#ca8a04', get: r => r.oil_pressure },
+      { key: 'sp_kg', label: 'Suction P (SP)', unit: 'kg/cm²', get: r => r.sp_kg },
+      { key: 'dp_kg', label: 'Discharge P (DP)', unit: 'kg/cm²', get: r => r.dp_kg },
+      { key: 'oil_pressure', label: 'Oil pressure', unit: 'kg/cm²', get: r => r.oil_pressure },
     ],
   },
   {
     group: 'Temperatures',
+    dash: [12, 4, 2, 4],
     metrics: [
-      { key: 'st_c', label: 'Suction T (ST)', unit: '°C', color: '#3b82f6', get: r => r.st_c },
-      { key: 'dt_c', label: 'Discharge T (DT)', unit: '°C', color: '#ef4444', get: r => r.dt_c },
-      { key: 'liquid_temp_c', label: 'Liquid line T', unit: '°C', color: '#60a5fa', get: r => r.liquid_temp_c },
-      { key: 'condenser_temp_c', label: 'Condenser T', unit: '°C', color: '#f87171', get: r => r.condenser_temp_c },
-      { key: 'oil_temp', label: 'Oil temp', unit: '°C', color: '#fbbf24', get: r => r.oil_temp },
-      { key: 'glycol_temp', label: 'Glycol temp', unit: '°C', color: '#22d3ee', get: r => r.glycol_temp },
+      { key: 'st_c', label: 'Suction T (ST)', unit: '°C', get: r => r.st_c },
+      { key: 'dt_c', label: 'Discharge T (DT)', unit: '°C', get: r => r.dt_c },
+      { key: 'liquid_temp_c', label: 'Liquid line T', unit: '°C', get: r => r.liquid_temp_c },
+      { key: 'condenser_temp_c', label: 'Condenser T', unit: '°C', get: r => r.condenser_temp_c },
+      { key: 'oil_temp', label: 'Oil temp', unit: '°C', get: r => r.oil_temp },
+      { key: 'glycol_temp', label: 'Glycol temp', unit: '°C', get: r => r.glycol_temp },
     ],
   },
   {
     group: 'Electrical',
-    metrics: [{ key: 'current_amp', label: 'Motor current', unit: 'A', color: '#e879f9', get: r => r.current_amp }],
+    dash: [2,6],
+    metrics: [{ key: 'current_amp', label: 'Motor current', unit: 'A', get: r => r.current_amp }],
   },
   {
     group: 'Status / Mechanical',
-    metrics: [{ key: 'slide_valve_pct', label: 'Slide valve', unit: '%', color: '#94a3b8', get: r => r.slide_valve_pct }],
+    dash:  [14,3,3,3],
+    metrics: [{ key: 'slide_valve_pct', label: 'Slide valve', unit: '%', get: r => r.slide_valve_pct }],
   },
 ]
 
-const ALL_METRICS = METRIC_GROUPS.flatMap(g => g.metrics)
+// Deterministic, unlimited-capacity palette: golden-angle hue rotation keeps
+// consecutive colors far apart in hue regardless of how many metrics exist.
+const PALETTE = [
+  "#4E79A7", // Blue
+  "#F28E2B", // Orange
+  "#E15759", // Red
+  "#76B7B2", // Cyan
+  "#59A14F", // Green
+  "#EDC948", // Yellow
+  "#B07AA1", // Purple
+  "#FF9DA7", // Pink
+  "#9C755F", // Brown
+  "#BAB0AC", // Gray
+
+  "#1F77B4",
+  "#FF7F0E",
+  "#2CA02C",
+  "#D62728",
+  "#9467BD",
+  "#8C564B",
+  "#E377C2",
+  "#7F7F7F",
+  "#BCBD22",
+  "#17BECF",
+]
+
+const GOLDEN_ANGLE = 137.508
+
+const metricColor = (i, dark = false) => {
+  if (i < PALETTE.length) return PALETTE[i]
+
+  const hue = Math.round((i * GOLDEN_ANGLE) % 360)
+  const light = dark ? 62 : 48
+
+  return `hsl(${hue},72%,${light}%)`
+}
+
+const buildAllMetrics = dark => {
+  const list = []
+  let idx = 0
+  for (const group of METRIC_GROUPS) {
+    for (const metric of group.metrics) {
+      list.push({
+        ...metric,
+        group: group.group,
+        dash: group.dash,
+        color: metricColor(idx++, dark),
+      })
+    }
+  }
+  return list
+}
+
 const DEFAULT_ON = ['cop', 'st_c', 'dt_c', 'sp_kg']
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -113,6 +173,7 @@ export default function CompressorTrendChart({ compressors, typeMap, defaultId }
   const [hover, setHover] = useState(null)
 
   const isDark = document.documentElement.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches
+  const ALL_METRICS = useMemo(() => buildAllMetrics(isDark), [isDark])
   const textColor = isDark ? '#8b949e' : '#57606a'
   const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
   const axisLineColor = isDark ? '#30363d' : '#d0d7de'
@@ -182,6 +243,12 @@ export default function CompressorTrendChart({ compressors, typeMap, defaultId }
       return next
     })
 
+  const metricByKey = useMemo(() => {
+    const map = {}
+    ALL_METRICS.forEach(m => { map[m.key] = m })
+    return map
+  }, [ALL_METRICS])
+
   const selectedMetrics = ALL_METRICS.filter(m => selected.has(m.key))
 
   const unitAxis = useMemo(() => {
@@ -250,7 +317,22 @@ export default function CompressorTrendChart({ compressors, typeMap, defaultId }
         step:false,
         connectNulls: false,
         sampling: 'lttb',
-        lineStyle: { width: 1.5, color: m.color },
+        lineStyle: {
+          width: 2.2,
+          color: m.color,
+          type: m.dash?.length ? m.dash : 'solid',
+      },
+      emphasis:{
+          focus:"series",
+          lineStyle:{
+              width:3.5
+          }
+      },
+    blur:{
+        lineStyle:{
+            opacity:0.15
+        }
+    },
         itemStyle: { color: m.color },
       })),
     }
@@ -415,14 +497,24 @@ export default function CompressorTrendChart({ compressors, typeMap, defaultId }
                         {allOn ? 'clear' : 'all'}
                       </button>
                     </div>
-                    {g.metrics.map(m => (
-                      <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '2px 3px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                        <input type="checkbox" checked={selected.has(m.key)} onChange={() => toggle(m.key)} />
-                        <span style={{ width: 9, height: 9, borderRadius: 2, background: m.color, flex: 'none' }} />
-                        <span style={{ flex: 1, color: 'var(--text-1)' }}>{m.label}</span>
-                        {m.unit && <span style={{ color: 'var(--text-3)', fontSize: 9 }}>{m.unit}</span>}
-                      </label>
-                    ))}
+                    {g.metrics.map(m => {
+                      const full = metricByKey[m.key]
+                      return (
+                        <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '2px 3px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                          <input type="checkbox" checked={selected.has(m.key)} onChange={() => toggle(m.key)} />
+                          <svg width="18" height="9" style={{ flex: 'none' }}>
+                            <line
+                              x1="0" y1="4.5" x2="18" y2="4.5"
+                              stroke={full.color}
+                              strokeWidth="2"
+                              strokeDasharray={full.dash?.length ? full.dash.join(',') : undefined}
+                            />
+                          </svg>
+                          <span style={{ flex: 1, color: 'var(--text-1)' }}>{m.label}</span>
+                          {m.unit && <span style={{ color: 'var(--text-3)', fontSize: 9 }}>{m.unit}</span>}
+                        </label>
+                      )
+                    })}
                   </div>
                 )
               })}

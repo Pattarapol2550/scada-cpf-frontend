@@ -602,6 +602,16 @@ function AdminCreateSection() {
   )
 }
 
+// รวมรูปแบบ id ให้เดียวกัน เช่น "comp-1", "COMP-1", "COMP-01" -> "COMP-01"
+// เพื่อกันไม่ให้เพิ่มคอมเพรสเซอร์ซ้ำที่ต่างกันแค่ตัวพิมพ์/เลขนำหน้าศูนย์
+function normalizeCompressorId(raw) {
+  const value = (raw || '').trim().toUpperCase()
+  const m = value.match(/^(.*?)(\d+)$/)
+  if (!m) return value
+  const [, prefix, digits] = m
+  return `${prefix}${String(parseInt(digits, 10)).padStart(2, '0')}`
+}
+
 // ── Section: Compressors (create / edit type / delete — เชื่อม backend จริง) ──
 function AdminCompressorsSection() {
   const [compList, setCompList] = useState([])
@@ -630,8 +640,12 @@ function AdminCompressorsSection() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const id = form.id.trim().toUpperCase()
+    const id = normalizeCompressorId(form.id)
     if (!id) { showToast('กรุณากรอกรหัสคอมเพรสเซอร์', 'error'); return }
+    if (compList.some((c) => normalizeCompressorId(c.id) === id)) {
+      showToast(`คอมเพรสเซอร์ '${id}' มีอยู่แล้ว`, 'error')
+      return
+    }
     setSaving(true)
     try {
       await adminCreateCompressor({ id, type: form.type })
