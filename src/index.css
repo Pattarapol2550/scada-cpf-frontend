@@ -6,56 +6,56 @@
 
 /* ── CSS tokens: dark mode (default) ── */
 :root {
-  --bg0:        #0d1117;
-  --bg1:        #161b22;
-  --bg2:        #1c2333;
-  --bg3:        #21262d;
-  --border:     #30363d;
-  --border-hi:  #484f58;
-  --text-1:     #e6edf3;
-  --text-2:     #8b949e;
-  --text-3:     #7d8590;
+  --bg0:        #0a1524;
+  --bg1:        #0f1e33;
+  --bg2:        #132340;
+  --bg3:        #17294a;
+  --border:     #1f3252;
+  --border-hi:  #2c4570;
+  --text-1:     #e7edf7;
+  --text-2:     #8fa0bd;
+  --text-3:     #647a9c;
 
-  --green:   #3fb950;
-  --amber:   #d29922;
-  --red:     #f85149;
-  --blue:    #58a6ff;
+  --green:   #3ecf8e;
+  --amber:   #e0a838;
+  --red:     #f0685f;
+  --blue:    #5b93f5;
   --cyan:    #39c5cf;
   --purple:  #a371f7;
   --orange:  #f0883e;
   --pink:    #ec6cb9;
 
-  --green-dim:  rgba(63,185,80,0.10);
-  --amber-dim:  rgba(210,153,34,0.10);
-  --red-dim:    rgba(248,81,73,0.10);
-  --blue-dim:   rgba(88,166,255,0.10);
+  --green-dim:  rgba(62,207,142,0.12);
+  --amber-dim:  rgba(224,168,56,0.12);
+  --red-dim:    rgba(240,104,95,0.12);
+  --blue-dim:   rgba(91,147,245,0.14);
 }
 
 /* ── CSS tokens: light mode ── */
 .light {
-  --bg0:        #f4f6f9;
+  --bg0:        #eef2f8;
   --bg1:        #ffffff;
-  --bg2:        #f0f2f5;
-  --bg3:        #e8eaed;
-  --border:     #dde1e7;
-  --border-hi:  #c8cdd6;
-  --text-1:     #1a1f2e;
-  --text-2:     #5a6272;
-  --text-3:     #9aa0ad;
+  --bg2:        #f4f7fb;
+  --bg3:        #e9eef6;
+  --border:     #dbe3ef;
+  --border-hi:  #c4d0e3;
+  --text-1:     #0e2340;
+  --text-2:     #5b6b85;
+  --text-3:     #8b96ab;
 
-  --green:   #1a7f37;
-  --amber:   #9a6700;
-  --red:     #cf222e;
-  --blue:    #0969da;
+  --green:   #1a9e6b;
+  --amber:   #c98a12;
+  --red:     #d64545;
+  --blue:    #2f6fed;
   --cyan:    #0e7490;
   --purple:  #6e40c9;
   --orange:  #bc4c00;
   --pink:    #bf3989;
 
-  --green-dim:  rgba(26,127,55,0.10);
-  --amber-dim:  rgba(154,103,0,0.10);
-  --red-dim:    rgba(207,34,46,0.10);
-  --blue-dim:   rgba(9,105,218,0.10);
+  --green-dim:  rgba(26,158,107,0.10);
+  --amber-dim:  rgba(201,138,18,0.10);
+  --red-dim:    rgba(214,69,69,0.10);
+  --blue-dim:   rgba(47,111,237,0.10);
 }
 
 /* ── Base ── */

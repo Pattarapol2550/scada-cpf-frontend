@@ -253,8 +253,8 @@ export default function HistoryPage() {
               {records.length > 0 && <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'monospace' }}>{records.length.toLocaleString()} records</span>}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => exportCSV(records, `${fileBase}.csv`)} disabled={!records.length} className="btn-ghost" style={{ fontSize: 11, padding: '4px 12px', opacity: records.length ? 1 : 0.4 }}>⬇ CSV</button>
-              <button onClick={() => exportXLSX(records, `${fileBase}.xlsx`, 'History')} disabled={!records.length} className="btn-ghost" style={{ fontSize: 11, padding: '4px 12px', opacity: records.length ? 1 : 0.4 }}>⬇ Excel</button>
+              <button onClick={() => exportCSV(records, `${fileBase}.csv`, { dailySummary: true })} disabled={!records.length} className="btn-ghost" style={{ fontSize: 11, padding: '4px 12px', opacity: records.length ? 1 : 0.4 }}>⬇ CSV</button>
+              <button onClick={() => exportXLSX(records, `${fileBase}.xlsx`, 'History', { dailySummary: true })} disabled={!records.length} className="btn-ghost" style={{ fontSize: 11, padding: '4px 12px', opacity: records.length ? 1 : 0.4 }}>⬇ Excel</button>
             </div>
           </div>
 

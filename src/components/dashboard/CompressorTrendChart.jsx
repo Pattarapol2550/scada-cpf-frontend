@@ -117,7 +117,7 @@ const buildAllMetrics = dark => {
   return list
 }
 
-const DEFAULT_ON = ['cop', 'st_c', 'dt_c', 'sp_kg']
+const DEFAULT_ON = ['cop', 'st_c', 'dt_c', 'sp_kg']  //การเลือกเริ่มต้น
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const MAX_DAYS = 7
