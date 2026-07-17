@@ -4,7 +4,7 @@ import Sidebar from '../components/layout/Sidebar'
 import { useMetrics } from '../hooks/useMetrics'
 import { toLocalDT, formatThaiTime, formatTimeOnly, num } from '../utils/format'
 import { useCompressors } from '../hooks/useCompressors'
-import { exportCSV, exportXLSX } from '../utils/exportUtils'
+import { exportCSV, exportDailySummaryXLSX } from '../utils/exportUtils'
 import { CHART_DEFAULTS, CHART_TOOLTIP, mkDs } from '../utils/chartConfig'
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
@@ -254,7 +254,7 @@ export default function HistoryPage() {
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => exportCSV(records, `${fileBase}.csv`, { dailySummary: true })} disabled={!records.length} className="btn-ghost" style={{ fontSize: 11, padding: '4px 12px', opacity: records.length ? 1 : 0.4 }}>⬇ CSV</button>
-              <button onClick={() => exportXLSX(records, `${fileBase}.xlsx`, 'History', { dailySummary: true })} disabled={!records.length} className="btn-ghost" style={{ fontSize: 11, padding: '4px 12px', opacity: records.length ? 1 : 0.4 }}>⬇ Excel</button>
+              <button onClick={() => exportDailySummaryXLSX(records, `${fileBase}.xlsx`, 'Summary')} disabled={!records.length} className="btn-ghost" style={{ fontSize: 11, padding: '4px 12px', opacity: records.length ? 1 : 0.4 }}>⬇ Excel</button>
             </div>
           </div>
 
